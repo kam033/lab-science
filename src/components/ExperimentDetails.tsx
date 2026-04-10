@@ -11,6 +11,8 @@ import { InverseSquareLawSim } from '@/components/simulations/InverseSquareLawSi
 import { YeastRespirationSim } from '@/components/simulations/YeastRespirationSim'
 import { MeiosisSim } from '@/components/simulations/MeiosisSim'
 import { PhotosynthesisSim } from '@/components/simulations/PhotosynthesisSim'
+import { AccelerationSim } from '@/components/simulations/AccelerationSim'
+import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -27,30 +29,43 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
     experiment.subject === 'physics' ? Atom :
     Leaf
 
-  const simulationIds = [
-    'bio-membrane', 'chem-1-1', 'phys-1-6',
-    'bio-1-6', 'bio-1-1', 'bio-3-7', 'bio-5-7'
-  ]
-  
-  const hasSimulation = simulationIds.includes(experiment.id)
+  const hasSimulation = true
 
   const getSimulationComponent = () => {
     switch (experiment.id) {
       case 'bio-membrane':
+      case 'bio-1-3-transport':
         return <MembraneTransportSim />
       case 'chem-1-1':
+      case 'chem-1-1-ph-intro':
         return <PHTitrationSim />
       case 'phys-1-6':
         return <InverseSquareLawSim />
       case 'bio-1-6':
+      case 'bio-6-2-fermentation':
         return <YeastRespirationSim />
       case 'bio-1-1':
+      case 'bio-2-2-mitosis':
         return <MeiosisSim />
       case 'bio-3-7':
       case 'bio-5-7':
+      case 'bio-7-3-pigments':
         return <PhotosynthesisSim />
+      case 'phys-1-1-acceleration':
+      case 'phys-1-1-displacement':
+        return <AccelerationSim />
+      case 'phys-2-1-kinetic':
+      case 'phys-2-2-potential':
+      case 'phys-2-3-conservation':
+        return <KineticEnergySim />
       default:
-        return null
+        return <div className="text-center p-8 space-y-4">
+          <Cpu size={64} className="mx-auto text-muted-foreground" weight="duotone" />
+          <h3 className="text-xl font-bold font-cairo">مختبر تفاعلي قريباً</h3>
+          <p className="text-muted-foreground font-noto">
+            المحاكاة التفاعلية لهذه التجربة قيد التطوير حالياً
+          </p>
+        </div>
     }
   }
 

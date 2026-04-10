@@ -13,7 +13,7 @@ interface ExperimentCardProps {
 
 export function ExperimentCard({ experiment, onClick, isFavorite, onToggleFavorite }: ExperimentCardProps) {
   const subjectInfo = subjects[experiment.subject]
-  const hasSimulation = ['bio-membrane', 'chem-1-1', 'phys-1-6'].includes(experiment.id)
+  const hasSimulation = true
 
   const SubjectIcon = 
     experiment.subject === 'chemistry' ? Flask :
