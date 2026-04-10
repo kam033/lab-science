@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Sparkle, Download, Printer, Copy, CheckCircle } from '@phosphor-icons/react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Sparkle, Download, Printer, Copy, CheckCircle, Eye, Warning, Bug } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
 interface Question {
@@ -12,6 +13,7 @@ interface Question {
   question: string
   marks: number
   skill: string
+  rubric?: string[]
 }
 
 interface QuizData {
@@ -24,97 +26,240 @@ interface SmartQuizGeneratorProps {
   experiment: Experiment
 }
 
+const DEBUG_MODE = true
+
 export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
   const [quiz, setQuiz] = useState<QuizData | null>(null)
+  const [previewQuiz, setPreviewQuiz] = useState<QuizData | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [errorDetails, setErrorDetails] = useState<string>('')
+  const [debugInfo, setDebugInfo] = useState<string>('')
 
-  const generateQuiz = async () => {
+  const safeGet = (value: any, fallback: string = 'غير محدد'): string => {
+    if (!value) return fallback
+    if (Array.isArray(value)) {
+      return value.length > 0 ? value.join(' • ') : fallback
+    }
+    return String(value)
+  }
+
+  const createFallbackQuiz = (): QuizData => {
+    const fallbackTitle = experiment.title || 'تجربة علمية'
+    
+    return {
+      title: `اختبار استقصاء: ${fallbackTitle}`,
+      totalMarks: 45,
+      questions: [
+        {
+          type: 'التخطيط',
+          question: `خطط لإجراء تجربة ${fallbackTitle}:\n\n` +
+            `أ) حدد المتغيرات:\n` +
+            `   - المتغير المستقل: ${safeGet(experiment.variables?.independent, 'المتغير الذي تغيره')}\n` +
+            `   - المتغير التابع: ${safeGet(experiment.variables?.dependent, 'المتغير الذي تقيسه')}\n` +
+            `   - المتغيرات الثابتة: ${safeGet(experiment.variables?.controlled, 'المتغيرات التي تبقيها ثابتة')}\n\n` +
+            `ب) اكتب فرضية علمية قابلة للاختبار\n\n` +
+            `ج) صف طريقة التنفيذ باستخدام: ${safeGet(experiment.apparatus)}\n\n` +
+            `د) اذكر 3 إجراءات سلامة مهمة`,
+          marks: 10,
+          skill: 'تخطيط التجارب والاستقصاءات',
+          rubric: [
+            'تحديد المتغيرات الثلاثة بدقة (3 درجات)',
+            'فرضية واضحة وقابلة للاختبار (2 درجة)',
+            'طريقة منطقية ومنظمة (3 درجات)',
+            'إجراءات سلامة مناسبة (2 درجة)'
+          ]
+        },
+        {
+          type: 'جمع البيانات والقياس',
+          question: `صمم جدول بيانات لتسجيل نتائج تجربة ${fallbackTitle}:\n\n` +
+            `أ) حدد الأعمدة المطلوبة مع الوحدات\n` +
+            `ب) اقترح عدد القراءات المناسب ولماذا\n` +
+            `ج) حدد نطاق القيم المتوقعة\n` +
+            `د) كيف ستحسن دقة القياسات؟`,
+          marks: 10,
+          skill: 'جمع الملاحظات والقياسات وتسجيلها',
+          rubric: [
+            'جدول منظم مع عناوين واضحة (2 درجة)',
+            'وحدات قياسية صحيحة (2 درجة)',
+            'عدد قراءات مناسب مع تبرير (3 درجات)',
+            'نطاق واقعي ودقة محسنة (3 درجات)'
+          ]
+        },
+        {
+          type: 'التحليل والاستنتاج',
+          question: `بناءً على البيانات المتوقعة من ${fallbackTitle}:\n\n` +
+            `أ) ارسم رسماً بيانياً:\n` +
+            `   - المحور الأفقي (x): ${safeGet(experiment.variables?.independent, 'المتغير المستقل')}\n` +
+            `   - المحور الرأسي (y): ${safeGet(experiment.variables?.dependent, 'المتغير التابع')}\n` +
+            `   - ضع عنواناً مناسباً ووحدات على المحاور\n\n` +
+            `ب) صف العلاقة المتوقعة (طردية/عكسية/ثابتة)\n\n` +
+            `ج) احسب قيمة فيزيائية من الرسم (ميل، قيمة ثابت، معدل)\n\n` +
+            `د) اكتب استنتاجاً علمياً واربطه بالنظرية`,
+          marks: 13,
+          skill: 'تحليل البيانات والوصول إلى استنتاجات',
+          rubric: [
+            'رسم بياني صحيح مع عنوان ووحدات (5 درجات)',
+            'وصف دقيق للعلاقة (3 درجات)',
+            'حساب صحيح من الرسم (3 درجات)',
+            'استنتاج علمي مرتبط بالنظرية (2 درجة)'
+          ]
+        },
+        {
+          type: 'التقييم والتحسين',
+          question: `قيّم تجربة ${fallbackTitle}:\n\n` +
+            `أ) حدد 3 مصادر خطأ محتملة وكيف تؤثر على النتائج\n\n` +
+            `ب) اقترح 3 تحسينات عملية لزيادة الدقة والموثوقية\n\n` +
+            `ج) هل النتائج المتوقعة دقيقة وموثوقية؟ فسر إجابتك\n\n` +
+            `د) اقترح امتداداً للتجربة لدراسة متغير إضافي`,
+          marks: 12,
+          skill: 'تقييم الأساليب واقتراح التحسينات',
+          rubric: [
+            'تحديد 3 مصادر خطأ واقعية (3 درجات)',
+            'اقتراح 3 تحسينات عملية (3 درجات)',
+            'تقييم الدقة مع تبرير (3 درجات)',
+            'امتداد مناسب ومبتكر (3 درجات)'
+          ]
+        }
+      ]
+    }
+  }
+
+  const generatePreview = async () => {
     setIsGenerating(true)
+    setErrorDetails('')
+    setDebugInfo('')
     
     try {
+      if (DEBUG_MODE) {
+        const info = `معلومات التجربة:\n` +
+          `العنوان: ${experiment.title}\n` +
+          `المادة: ${experiment.subject}\n` +
+          `الوحدة: ${experiment.unitTitle || 'غير محدد'}\n` +
+          `الأهداف: ${safeGet(experiment.objectives)}\n` +
+          `المكونات: ${safeGet(experiment.components)}\n` +
+          `الأجهزة: ${safeGet(experiment.apparatus)}\n` +
+          `المهارات: ${safeGet(experiment.skills)}\n` +
+          `المتغيرات: ${JSON.stringify(experiment.variables || {})}`
+        
+        setDebugInfo(info)
+        console.log('🔍 Debug Info:', info)
+      }
+
       const promptText = `أنت خبير في تقييم الاستقصاء العلمي للصف الثاني عشر حسب التعميم السعودي.
 
 أنشئ اختبار استقصاء علمي كامل ومفصل للتجربة التالية:
 
-**عنوان التجربة:** ${experiment.title}
-**المادة:** ${experiment.subject}
+**عنوان التجربة:** ${experiment.title || 'تجربة علمية'}
+**المادة:** ${experiment.subject || 'علوم'}
 **الوحدة:** ${experiment.unitTitle || 'غير محدد'}
-**الأهداف:** ${experiment.objectives?.join(' • ') || 'غير محدد'}
-**المكونات:** ${experiment.components.join(' • ')}
-**الأجهزة:** ${experiment.apparatus.join(' • ')}
-**المهارات:** ${experiment.skills.join(' • ')}
+**الأهداف:** ${safeGet(experiment.objectives)}
+**المكونات:** ${safeGet(experiment.components)}
+**الأجهزة:** ${safeGet(experiment.apparatus)}
+**المهارات:** ${safeGet(experiment.skills)}
+**نوع التجربة:** ${experiment.type || 'استقصاء عملي'}
 **المتغيرات:**
-- المستقل: ${experiment.variables?.independent || 'غير محدد'}
-- التابع: ${experiment.variables?.dependent || 'غير محدد'}
-- الثابتة: ${experiment.variables?.controlled?.join(' • ') || 'غير محدد'}
+- المستقل: ${safeGet(experiment.variables?.independent)}
+- التابع: ${safeGet(experiment.variables?.dependent)}
+- الثابتة: ${safeGet(experiment.variables?.controlled)}
 
-يجب أن يشمل الاختبار الأسئلة التالية بالتحديد:
+يجب أن يشمل الاختبار 4 أقسام رئيسية:
 
-1. **سؤال التخطيط (10 درجات):**
-   - تحديد المتغير المستقل والتابع والثابت
-   - كتابة فرضية علمية
-   - اقتراح طريقة لتنفيذ التجربة
-   - ذكر إجراءات السلامة
+**القسم الأول: التخطيط (10 درجات)**
+- تحديد المتغير المستقل والتابع والثابت بدقة
+- كتابة فرضية علمية قابلة للاختبار
+- اقتراح طريقة منهجية لتنفيذ التجربة
+- ذكر إجراءات السلامة المناسبة
 
-2. **سؤال جمع البيانات (8 درجات):**
-   - تصميم جدول بيانات مناسب مع الأعمدة المطلوبة
-   - تحديد الوحدات القياسية
-   - اقتراح عدد القراءات المناسب
-   - تحديد نطاق القياسات
+**القسم الثاني: جمع البيانات والقياس (10 درجات)**
+- تصميم جدول بيانات شامل مع الأعمدة والوحدات
+- تحديد الأدوات القياسية المناسبة
+- اقتراح عدد القراءات وتكرارها
+- تحديد نطاق ودقة القياسات
 
-3. **سؤال الرسم البياني (10 درجات):**
-   - تحديد المحور السيني والصادي
-   - رسم منحنى أو خط مناسب
-   - وضع عنوان للرسم
-   - كتابة وحدات المحاور
-   - تحديد العلاقة (طردية/عكسية/ثابتة)
+**القسم الثالث: التحليل والاستنتاج (13 درجة)**
+- رسم بياني كامل (محاور، عنوان، وحدات، منحنى)
+- وصف النمط والعلاقة في البيانات
+- حسابات (ميل، معدل، قيمة فيزيائية)
+- استنتاج علمي مرتبط بالنظرية
 
-4. **سؤال التحليل (8 درجات):**
-   - وصف النمط في البيانات
-   - حساب معدل أو ميل أو قيمة من الرسم
-   - كتابة استنتاج علمي
-   - ربط النتائج بالنظرية العلمية
-
-5. **سؤال التقييم (9 درجات):**
-   - تحديد مصادر الخطأ (3)
-   - اقتراح تحسينات (3)
-   - تقييم دقة النتائج
-   - اقتراح امتدادات للتجربة
+**القسم الرابع: التقييم والتحسين (12 درجة)**
+- تحديد 3 مصادر خطأ وتأثيرها
+- اقتراح 3 تحسينات عملية
+- تقييم دقة وموثوقية النتائج
+- اقتراح امتداد للتجربة
 
 **المجموع الكلي: 45 درجة**
 
-أعطني النتيجة كـ JSON object مع بنية:
+**ملاحظات خاصة بهذه التجربة:**
+${experiment.title.includes('انقسام') || experiment.title.includes('مجهر') ? 
+  '- استخدم أسئلة تتعلق بالمجهر، تحديد الأطوار، الملاحظات المجهرية، والرسم العلمي' : 
+  experiment.title.includes('pH') || experiment.title.includes('معايرة') ?
+  '- ركز على قراءات pH، حجوم المحاليل، منحنى المعايرة، ونقطة التكافؤ' :
+  experiment.title.includes('ضوء') || experiment.title.includes('ليزر') ?
+  '- اهتم بقياسات المسافات، الزوايا، الأطوال الموجية، والنمط الضوئي' :
+  '- اجعل الأسئلة مرتبطة مباشرة بطبيعة التجربة ومكوناتها'}
+
+أعطني النتيجة كـ JSON object فقط مع البنية التالية:
 {
   "title": "اختبار استقصاء: [اسم التجربة]",
   "totalMarks": 45,
   "questions": [
     {
       "type": "التخطيط",
-      "question": "نص السؤال المفصل بالعربية",
+      "question": "نص السؤال المفصل والمحدد بالعربية",
       "marks": 10,
-      "skill": "تخطيط التجارب",
-      "rubric": ["معيار 1", "معيار 2", ...]
+      "skill": "تخطيط التجارب والاستقصاءات",
+      "rubric": ["معيار 1", "معيار 2", "معيار 3"]
     }
   ]
 }
 
 **مهم جداً:**
 - اجعل الأسئلة مفصلة ومحددة لهذه التجربة بالذات
-- استخدم أرقام وقيم واقعية مناسبة للتجربة
-- اكتب بلغة علمية واضحة
-- كل سؤال يجب أن يكون قابل للتطبيق المباشر`
+- استخدم قيم وأرقام واقعية من سياق التجربة
+- اكتب بلغة علمية واضحة ومباشرة
+- كل سؤال يجب أن يكون قابل للتطبيق الفوري`
 
       const response = await window.spark.llm(promptText, 'gpt-4o', true)
+      
+      if (DEBUG_MODE) {
+        console.log('📥 Response:', response)
+      }
+      
       const quizData = JSON.parse(response) as QuizData
       
-      setQuiz(quizData)
-      toast.success('تم إنشاء الاختبار بنجاح!')
+      if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+        throw new Error('البيانات المستلمة غير صالحة')
+      }
+      
+      setPreviewQuiz(quizData)
+      toast.success('تم إنشاء معاينة الاختبار!')
+      
     } catch (error) {
-      console.error('Error generating quiz:', error)
-      toast.error('حدث خطأ في إنشاء الاختبار')
+      console.error('❌ Error generating quiz preview:', error)
+      
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setErrorDetails(`تفاصيل الخطأ: ${errorMessage}`)
+      
+      if (DEBUG_MODE) {
+        toast.error(`فشل إنشاء الاختبار الذكي. السبب: ${errorMessage}`, { duration: 5000 })
+      }
+      
+      const fallback = createFallbackQuiz()
+      setPreviewQuiz(fallback)
+      toast.info('تم إنشاء اختبار افتراضي بسبب عدم توفر البيانات الكاملة', { duration: 4000 })
+      
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const confirmQuiz = () => {
+    if (previewQuiz) {
+      setQuiz(previewQuiz)
+      setPreviewQuiz(null)
+      toast.success('تم تأكيد الاختبار!')
     }
   }
 
@@ -170,7 +315,25 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
 
   return (
     <div className="space-y-4">
-      {!quiz ? (
+      {DEBUG_MODE && debugInfo && (
+        <Alert className="bg-muted border-l-4 border-l-blue-500">
+          <Bug size={20} className="text-blue-500" />
+          <AlertDescription className="text-xs font-mono whitespace-pre-wrap ml-2">
+            {debugInfo}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {errorDetails && (
+        <Alert className="bg-destructive/10 border-l-4 border-l-destructive">
+          <Warning size={20} className="text-destructive" />
+          <AlertDescription className="text-sm font-cairo ml-2 text-destructive">
+            {errorDetails}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!quiz && !previewQuiz ? (
         <Card className="border-2 border-dashed">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
@@ -181,12 +344,12 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
               <div className="space-y-2">
                 <h3 className="text-xl font-bold font-cairo">مولّد الاختبار الذكي</h3>
                 <p className="text-muted-foreground font-noto max-w-md mx-auto">
-                  اضغط لإنشاء اختبار استقصاء شامل مطابق للتعميم السعودي - يتضمن التخطيط، جمع البيانات، الرسم البياني، التحليل، والتقييم
+                  اضغط لإنشاء اختبار استقصاء شامل مطابق للتعميم السعودي - يتضمن 4 أقسام: التخطيط، جمع البيانات، التحليل والاستنتاج، والتقييم والتحسين
                 </p>
               </div>
 
               <Button 
-                onClick={generateQuiz}
+                onClick={generatePreview}
                 disabled={isGenerating}
                 size="lg"
                 className="gap-2 font-cairo"
@@ -198,8 +361,8 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
                   </>
                 ) : (
                   <>
-                    <Sparkle size={20} weight="fill" />
-                    إنشاء اختبار استقصاء
+                    <Eye size={20} weight="fill" />
+                    معاينة الاختبار
                   </>
                 )}
               </Button>
@@ -210,7 +373,100 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : previewQuiz && !quiz ? (
+        <div className="space-y-4">
+          <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <CardTitle className="text-2xl font-cairo mb-2">
+                    <Eye size={24} className="inline ml-2" />
+                    معاينة: {previewQuiz.title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="font-cairo">
+                      المجموع الكلي: {previewQuiz.totalMarks} درجة
+                    </Badge>
+                    <Badge variant="secondary" className="font-cairo">
+                      {previewQuiz.questions.length} أسئلة
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <ScrollArea className="h-[400px]">
+            <div className="space-y-3 pr-4">
+              {previewQuiz.questions.map((question, idx) => (
+                <Card key={idx} className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className="font-cairo bg-primary">
+                            السؤال {idx + 1}
+                          </Badge>
+                          <Badge variant="outline" className="font-cairo">
+                            {question.type}
+                          </Badge>
+                          <Badge variant="secondary" className="font-cairo">
+                            {question.marks} درجات
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground font-cairo">
+                          المهارة: {question.skill}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="prose prose-sm max-w-none font-noto whitespace-pre-wrap">
+                      {question.question}
+                    </div>
+                    
+                    {question.rubric && (
+                      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 font-cairo">
+                          معايير التقييم:
+                        </div>
+                        <ul className="text-sm space-y-1 font-noto">
+                          {question.rubric.map((item: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-primary">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={confirmQuiz}
+              size="lg"
+              className="flex-1 gap-2 font-cairo"
+            >
+              <CheckCircle size={20} weight="fill" />
+              تأكيد واستخدام هذا الاختبار
+            </Button>
+            <Button
+              onClick={() => setPreviewQuiz(null)}
+              variant="outline"
+              size="lg"
+              className="font-cairo"
+            >
+              إلغاء
+            </Button>
+          </div>
+        </div>
+      ) : quiz ? (
         <div className="space-y-4">
           <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
             <CardHeader>
@@ -303,13 +559,13 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
                       {question.question}
                     </div>
                     
-                    {'rubric' in question && (question as any).rubric && (
+                    {question.rubric && (
                       <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                         <div className="text-xs font-semibold text-muted-foreground mb-2 font-cairo">
                           معايير التقييم:
                         </div>
                         <ul className="text-sm space-y-1 font-noto">
-                          {(question as any).rubric.map((item: string, i: number) => (
+                          {question.rubric.map((item: string, i: number) => (
                             <li key={i} className="flex items-start gap-2">
                               <span className="text-primary">•</span>
                               <span>{item}</span>
@@ -342,7 +598,7 @@ export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
