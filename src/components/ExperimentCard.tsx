@@ -71,11 +71,27 @@ export function ExperimentCard({ experiment, onClick, isFavorite, onToggleFavori
             {experiment.title}
           </CardTitle>
 
-          {experiment.unitTitle && (
-            <CardDescription className="text-sm font-cairo">
-              {experiment.unitTitle}
-            </CardDescription>
-          )}
+          <div className="space-y-1">
+            {experiment.unitTitle && (
+              <CardDescription className="text-sm font-cairo">
+                {experiment.unitTitle}
+              </CardDescription>
+            )}
+            {experiment.lessonTitle && (
+              <div className="flex items-center gap-1.5">
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs font-cairo px-2 py-0.5"
+                  style={{ 
+                    backgroundColor: 'oklch(0.65 0.22 50 / 0.1)',
+                    color: 'oklch(0.65 0.22 50)'
+                  }}
+                >
+                  📚 {experiment.lessonTitle}
+                </Badge>
+              </div>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-3">

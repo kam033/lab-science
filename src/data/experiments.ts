@@ -5,6 +5,8 @@ export interface Experiment {
   term: string
   unit?: string
   unitTitle?: string
+  lesson?: string
+  lessonTitle?: string
   experimentCode?: string
   title: string
   titleEn?: string
@@ -35,6 +37,8 @@ export const experiments: Experiment[] = [
     term: '2',
     unit: '6',
     unitTitle: 'الموجات',
+    lesson: '6-5',
+    lessonTitle: 'شدة الموجة وقانون التربيع العكسي',
     experimentCode: '1-6',
     title: 'قانون التربيع العكسي للموجات من مصدر نقطي',
     titleEn: 'Inverse Square Law for Waves from Point Source',
@@ -70,6 +74,8 @@ export const experiments: Experiment[] = [
     term: '2',
     unit: '7',
     unitTitle: 'تراكب الموجات',
+    lesson: '7-2',
+    lessonTitle: 'الحيود وقياس الطول الموجي',
     experimentCode: '1-7',
     title: 'التخطيط لقياس طول موجة ليزر باستخدام محزوز الحيود',
     titleEn: 'Planning to Measure Laser Wavelength Using Diffraction Grating',
@@ -235,6 +241,8 @@ export const experiments: Experiment[] = [
     term: '1',
     unit: '1',
     unitTitle: 'الأحماض والقواعد',
+    lesson: '1-2',
+    lessonTitle: 'معايرة حمض-قاعدة',
     experimentCode: '1-1',
     title: 'التغير في الرقم الهيدروجيني pH أثناء معايرة حمض-قاعدة',
     titleEn: 'pH Change During Acid-Base Titration',
