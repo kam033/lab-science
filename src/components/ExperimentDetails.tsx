@@ -13,6 +13,7 @@ import { MeiosisSim } from '@/components/simulations/MeiosisSim'
 import { PhotosynthesisSim } from '@/components/simulations/PhotosynthesisSim'
 import { AccelerationSim } from '@/components/simulations/AccelerationSim'
 import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
+import { TitrationCurveSim } from '@/components/simulations/TitrationCurveSim'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -32,41 +33,54 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
   const hasSimulation = true
 
   const getSimulationComponent = () => {
-    switch (experiment.id) {
-      case 'bio-membrane':
-      case 'bio-1-3-transport':
-        return <MembraneTransportSim />
-      case 'chem-1-1':
-      case 'chem-1-1-ph-intro':
-        return <PHTitrationSim />
-      case 'phys-1-6':
-        return <InverseSquareLawSim />
-      case 'bio-1-6':
-      case 'bio-6-2-fermentation':
-        return <YeastRespirationSim />
-      case 'bio-1-1':
-      case 'bio-2-2-mitosis':
-        return <MeiosisSim />
-      case 'bio-3-7':
-      case 'bio-5-7':
-      case 'bio-7-3-pigments':
-        return <PhotosynthesisSim />
-      case 'phys-1-1-acceleration':
-      case 'phys-1-1-displacement':
-        return <AccelerationSim />
-      case 'phys-2-1-kinetic':
-      case 'phys-2-2-potential':
-      case 'phys-2-3-conservation':
-        return <KineticEnergySim />
-      default:
-        return <div className="text-center p-8 space-y-4">
-          <Cpu size={64} className="mx-auto text-muted-foreground" weight="duotone" />
-          <h3 className="text-xl font-bold font-cairo">مختبر تفاعلي قريباً</h3>
-          <p className="text-muted-foreground font-noto">
-            المحاكاة التفاعلية لهذه التجربة قيد التطوير حالياً
-          </p>
-        </div>
+    const id = experiment.id
+    
+    if (id.includes('membrane') || id.includes('transport')) {
+      return <MembraneTransportSim />
     }
+    
+    if (id.includes('ph') || id === 'chem-1-1' || id === 'chem-1-1-ph-intro') {
+      return <PHTitrationSim />
+    }
+    
+    if (id.includes('titration') || id.includes('معايرة')) {
+      return <TitrationCurveSim />
+    }
+    
+    if (id.includes('inverse') || id === 'phys-1-6') {
+      return <InverseSquareLawSim />
+    }
+    
+    if (id.includes('yeast') || id.includes('respiration') || id.includes('خميرة') || id === 'bio-1-6' || id === 'bio-6-2-fermentation') {
+      return <YeastRespirationSim />
+    }
+    
+    if (id.includes('meiosis') || id.includes('mitosis') || id.includes('انقسام') || id === 'bio-1-1' || id === 'bio-2-2-mitosis') {
+      return <MeiosisSim />
+    }
+    
+    if (id.includes('photosynth') || id.includes('ضوئي') || id === 'bio-3-7' || id === 'bio-5-7' || id === 'bio-7-3-pigments') {
+      return <PhotosynthesisSim />
+    }
+    
+    if (id.includes('acceleration') || id.includes('displacement') || id.includes('حركة') || id.includes('تسارع') || id === 'phys-1-1-acceleration' || id === 'phys-1-1-displacement') {
+      return <AccelerationSim />
+    }
+    
+    if (id.includes('kinetic') || id.includes('potential') || id.includes('energy') || id.includes('طاقة') || id === 'phys-2-1-kinetic' || id === 'phys-2-2-potential' || id === 'phys-2-3-conservation') {
+      return <KineticEnergySim />
+    }
+    
+    return <div className="text-center p-8 space-y-4">
+      <Cpu size={64} className="mx-auto text-muted-foreground" weight="duotone" />
+      <h3 className="text-xl font-bold font-cairo">مختبر تفاعلي قريباً</h3>
+      <p className="text-muted-foreground font-noto">
+        المحاكاة التفاعلية لهذه التجربة قيد التطوير حالياً
+      </p>
+      <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-3 rounded inline-block">
+        ID: {id}
+      </div>
+    </div>
   }
 
   return (
