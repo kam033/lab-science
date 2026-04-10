@@ -1,7 +1,7 @@
 import { Experiment, subjects } from '@/data/experiments'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Flask, Atom, Leaf, Star } from '@phosphor-icons/react'
+import { Flask, Atom, Leaf, Star, Cpu } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 
 interface ExperimentCardProps {
@@ -13,6 +13,7 @@ interface ExperimentCardProps {
 
 export function ExperimentCard({ experiment, onClick, isFavorite, onToggleFavorite }: ExperimentCardProps) {
   const subjectInfo = subjects[experiment.subject]
+  const hasSimulation = ['bio-membrane', 'chem-1-1', 'phys-1-6'].includes(experiment.id)
 
   const SubjectIcon = 
     experiment.subject === 'chemistry' ? Flask :
@@ -78,6 +79,13 @@ export function ExperimentCard({ experiment, onClick, isFavorite, onToggleFavori
         </CardHeader>
 
         <CardContent className="space-y-3">
+          {hasSimulation && (
+            <Badge className="gap-1.5 font-cairo bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+              <Cpu size={14} weight="fill" />
+              مختبر تفاعلي
+            </Badge>
+          )}
+          
           {experiment.type && (
             <div className="text-xs text-muted-foreground font-cairo">
               {experiment.type}

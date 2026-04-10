@@ -4,7 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb } from '@phosphor-icons/react'
+import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu } from '@phosphor-icons/react'
+import { MembraneTransportSim } from '@/components/simulations/MembraneTransportSim'
+import { PHTitrationSim } from '@/components/simulations/PHTitrationSim'
+import { InverseSquareLawSim } from '@/components/simulations/InverseSquareLawSim'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -20,6 +23,21 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
     experiment.subject === 'chemistry' ? Flask :
     experiment.subject === 'physics' ? Atom :
     Leaf
+
+  const hasSimulation = ['bio-membrane', 'chem-1-1', 'phys-1-6'].includes(experiment.id)
+
+  const getSimulationComponent = () => {
+    switch (experiment.id) {
+      case 'bio-membrane':
+        return <MembraneTransportSim />
+      case 'chem-1-1':
+        return <PHTitrationSim />
+      case 'phys-1-6':
+        return <InverseSquareLawSim />
+      default:
+        return null
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -73,14 +91,21 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
 
         <ScrollArea className="h-[calc(90vh-200px)]">
           <div className="p-6 space-y-6">
-            <Tabs defaultValue="overview" dir="rtl">
-              <TabsList className="grid w-full grid-cols-5 font-cairo">
+            <Tabs defaultValue={hasSimulation ? "simulation" : "overview"} dir="rtl">
+              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-6' : 'grid-cols-5'}`}>
+                {hasSimulation && <TabsTrigger value="simulation"><Cpu size={16} className="ml-1 inline" />المختبر</TabsTrigger>}
                 <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
                 <TabsTrigger value="components">المكونات</TabsTrigger>
                 <TabsTrigger value="apparatus">الأجهزة</TabsTrigger>
                 <TabsTrigger value="steps">الخطوات</TabsTrigger>
                 <TabsTrigger value="safety">السلامة</TabsTrigger>
               </TabsList>
+
+              {hasSimulation && (
+                <TabsContent value="simulation" className="mt-4">
+                  {getSimulationComponent()}
+                </TabsContent>
+              )}
 
               <TabsContent value="overview" className="space-y-4 mt-4">
                 {experiment.objectives && experiment.objectives.length > 0 && (
