@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,7 +24,7 @@ export function MembraneTransportSim() {
   const [transportRate, setTransportRate] = useState(0)
   const animationRef = useRef<number>()
 
-  const initializeParticles = () => {
+  const initializeParticles = useCallback(() => {
     const newParticles: Particle[] = []
     let id = 0
 
@@ -51,13 +51,13 @@ export function MembraneTransportSim() {
     }
 
     setParticles(newParticles)
-  }
+  }, [insideConcentration, outsideConcentration])
 
   useEffect(() => {
     initializeParticles()
-  }, [insideConcentration, outsideConcentration, initializeParticles])
+  }, [initializeParticles])
 
-  const updateParticles = () => {
+  const updateParticles = useCallback(() => {
     setParticles(prev => {
       const updated = prev.map(p => {
         let newX = p.x + p.vx
@@ -109,14 +109,18 @@ export function MembraneTransportSim() {
         }
       })
 
-      const insideCount = updated.filter(p => p.inside).length
-      const outsideCount = updated.filter(p => !p.inside).length
-      const total = insideCount + outsideCount
-      setTransportRate(Math.abs(insideCount / total - 0.5) * 100)
-
       return updated
     })
-  }
+  }, [])
+
+  useEffect(() => {
+    const insideCount = particles.filter(p => p.inside).length
+    const outsideCount = particles.filter(p => !p.inside).length
+    const total = insideCount + outsideCount
+    if (total > 0) {
+      setTransportRate(Math.abs(insideCount / total - 0.5) * 100)
+    }
+  }, [particles])
 
   useEffect(() => {
     if (isRunning) {
