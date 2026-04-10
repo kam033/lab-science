@@ -8,6 +8,9 @@ import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, W
 import { MembraneTransportSim } from '@/components/simulations/MembraneTransportSim'
 import { PHTitrationSim } from '@/components/simulations/PHTitrationSim'
 import { InverseSquareLawSim } from '@/components/simulations/InverseSquareLawSim'
+import { YeastRespirationSim } from '@/components/simulations/YeastRespirationSim'
+import { MeiosisSim } from '@/components/simulations/MeiosisSim'
+import { PhotosynthesisSim } from '@/components/simulations/PhotosynthesisSim'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -24,7 +27,12 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
     experiment.subject === 'physics' ? Atom :
     Leaf
 
-  const hasSimulation = ['bio-membrane', 'chem-1-1', 'phys-1-6'].includes(experiment.id)
+  const simulationIds = [
+    'bio-membrane', 'chem-1-1', 'phys-1-6',
+    'bio-1-6', 'bio-1-1', 'bio-3-7', 'bio-5-7'
+  ]
+  
+  const hasSimulation = simulationIds.includes(experiment.id)
 
   const getSimulationComponent = () => {
     switch (experiment.id) {
@@ -34,6 +42,13 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
         return <PHTitrationSim />
       case 'phys-1-6':
         return <InverseSquareLawSim />
+      case 'bio-1-6':
+        return <YeastRespirationSim />
+      case 'bio-1-1':
+        return <MeiosisSim />
+      case 'bio-3-7':
+      case 'bio-5-7':
+        return <PhotosynthesisSim />
       default:
         return null
     }
