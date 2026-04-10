@@ -1,0 +1,27 @@
+.spark-initial-sha
+PRD.md
+README.md
+README_INTELLIGENT_FEATURES.md
+index.html
+spark.meta.json
+src/App.tsx
+src/components/DynamicQuizGenerator.tsx
+src/components/ErrorDetectionAssistant.tsx
+src/components/ExperimentCard.tsx
+src/components/ExperimentDetails.tsx
+src/components/LessonExamLinker.tsx
+src/components/SmartQuizGenerator.tsx
+src/components/StudentPerformanceTracker.tsx
+src/components/simulations/AccelerationSim.tsx
+src/components/simulations/InverseSquareLawSim.tsx
+src/components/simulations/KineticEnergySim.tsx
+src/components/simulations/MeiosisSim.tsx
+src/components/simulations/MembraneTransportSim.tsx
+src/components/simulations/PHT itrationSim.tsx
+src/components/simulations/PHTitrationSim.tsx
+src/components/simulations/PhotosynthesisSim.tsx
+src/components/simulations/TitrationCurveSim.tsx
+src/components/simulations/YeastRespirationSim.tsx
+src/data/experiments.ts
+src/data/lessons.ts
+src/index.css
