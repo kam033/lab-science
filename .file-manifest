@@ -22,11 +22,14 @@ packages/spark-tools/LICENSE
 packages/spark-tools/package.json
 spark.meta.json
 src/App.tsx
+src/ProjectsPortfolio.tsx
 src/components/DynamicQuizGenerator.tsx
 src/components/ErrorDetectionAssistant.tsx
 src/components/ExperimentCard.tsx
 src/components/ExperimentDetails.tsx
 src/components/LessonExamLinker.tsx
+src/components/ProjectCard.tsx
+src/components/ProjectDetails.tsx
 src/components/SmartQuizGenerator.tsx
 src/components/StudentPerformanceTracker.tsx
 src/components/simulations/AccelerationSim.tsx
@@ -41,6 +44,7 @@ src/components/simulations/TitrationCurveSim.tsx
 src/components/simulations/YeastRespirationSim.tsx
 src/data/experiments.ts
 src/data/lessons.ts
+src/data/projects.ts
 src/index.css
 upload-to-github.bat
 upload-to-github.sh
