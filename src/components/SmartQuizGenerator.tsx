@@ -1,219 +1,348 @@
 import { useState } from 'react'
 import { Experiment } from '@/data/experiments'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Sparkle, Download, Eye, Clipboard } from '@phosphor-icons/react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Sparkle, Download, Printer, Copy, CheckCircle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
+
+interface Question {
+  type: string
+  question: string
+  marks: number
+  skill: string
+}
+
+interface QuizData {
+  title: string
+  totalMarks: number
+  questions: Question[]
+}
 
 interface SmartQuizGeneratorProps {
   experiment: Experiment
 }
 
-interface QuizQuestion {
-  type: 'تحديد متغيرات' | 'جدول بيانات' | 'رسم بياني' | 'تحليل' | 'تقييم'
-  question: string
-  answer?: string
-  skill: string
-}
-
 export function SmartQuizGenerator({ experiment }: SmartQuizGeneratorProps) {
+  const [quiz, setQuiz] = useState<QuizData | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [questions, setQuestions] = useState<QuizQuestion[]>([])
-  const [showQuiz, setShowQuiz] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const generateQuiz = async () => {
     setIsGenerating(true)
-    toast.loading('جاري إنشاء الاختبار...', { id: 'quiz-gen' })
-
+    
     try {
-      const prompt = spark.llmPrompt`
-أنت معلم علوم خبير. أنشئ اختبار استقصاء علمي مطابق للتعميم الكويتي للصف 12.
+      const promptText = `أنت خبير في تقييم الاستقصاء العلمي للصف الثاني عشر حسب التعميم السعودي.
 
-التجربة: ${experiment.title}
-المادة: ${experiment.subject}
-المهارات: ${experiment.skills.join('، ')}
-الأهداف: ${experiment.objectives?.join('، ') || 'لا يوجد'}
+أنشئ اختبار استقصاء علمي كامل ومفصل للتجربة التالية:
 
-أنشئ 5 أسئلة تغطي جميع مهارات الاستقصاء:
+**عنوان التجربة:** ${experiment.title}
+**المادة:** ${experiment.subject}
+**الوحدة:** ${experiment.unitTitle || 'غير محدد'}
+**الأهداف:** ${experiment.objectives?.join(' • ') || 'غير محدد'}
+**المكونات:** ${experiment.components.join(' • ')}
+**الأجهزة:** ${experiment.apparatus.join(' • ')}
+**المهارات:** ${experiment.skills.join(' • ')}
+**المتغيرات:**
+- المستقل: ${experiment.variables?.independent || 'غير محدد'}
+- التابع: ${experiment.variables?.dependent || 'غير محدد'}
+- الثابتة: ${experiment.variables?.controlled?.join(' • ') || 'غير محدد'}
 
-1. سؤال عن تحديد المتغيرات (المستقل والتابع والثابت)
-2. سؤال عن تصميم جدول بيانات مناسب
-3. سؤال عن نوع الرسم البياني المناسب والمحاور
-4. سؤال تحليلي عن النتائج المتوقعة
-5. سؤال تقييمي عن تحسين التجربة أو مصادر الخطأ
+يجب أن يشمل الاختبار الأسئلة التالية بالتحديد:
 
-قدّم الإجابة كـJSON بهذا الشكل:
+1. **سؤال التخطيط (10 درجات):**
+   - تحديد المتغير المستقل والتابع والثابت
+   - كتابة فرضية علمية
+   - اقتراح طريقة لتنفيذ التجربة
+   - ذكر إجراءات السلامة
+
+2. **سؤال جمع البيانات (8 درجات):**
+   - تصميم جدول بيانات مناسب مع الأعمدة المطلوبة
+   - تحديد الوحدات القياسية
+   - اقتراح عدد القراءات المناسب
+   - تحديد نطاق القياسات
+
+3. **سؤال الرسم البياني (10 درجات):**
+   - تحديد المحور السيني والصادي
+   - رسم منحنى أو خط مناسب
+   - وضع عنوان للرسم
+   - كتابة وحدات المحاور
+   - تحديد العلاقة (طردية/عكسية/ثابتة)
+
+4. **سؤال التحليل (8 درجات):**
+   - وصف النمط في البيانات
+   - حساب معدل أو ميل أو قيمة من الرسم
+   - كتابة استنتاج علمي
+   - ربط النتائج بالنظرية العلمية
+
+5. **سؤال التقييم (9 درجات):**
+   - تحديد مصادر الخطأ (3)
+   - اقتراح تحسينات (3)
+   - تقييم دقة النتائج
+   - اقتراح امتدادات للتجربة
+
+**المجموع الكلي: 45 درجة**
+
+أعطني النتيجة كـ JSON object مع بنية:
 {
+  "title": "اختبار استقصاء: [اسم التجربة]",
+  "totalMarks": 45,
   "questions": [
     {
-      "type": "تحديد متغيرات",
-      "question": "نص السؤال",
-      "answer": "الإجابة النموذجية",
-      "skill": "تخطيط"
+      "type": "التخطيط",
+      "question": "نص السؤال المفصل بالعربية",
+      "marks": 10,
+      "skill": "تخطيط التجارب",
+      "rubric": ["معيار 1", "معيار 2", ...]
     }
   ]
 }
 
-تأكد أن الأسئلة:
-- واقعية ومناسبة لمستوى الصف 12
-- تغطي جميع مهارات الاستقصاء
-- مرتبطة بالتجربة المحددة
-- باللغة العربية الفصحى
-`
+**مهم جداً:**
+- اجعل الأسئلة مفصلة ومحددة لهذه التجربة بالذات
+- استخدم أرقام وقيم واقعية مناسبة للتجربة
+- اكتب بلغة علمية واضحة
+- كل سؤال يجب أن يكون قابل للتطبيق المباشر`
 
-      const response = await spark.llm(prompt, 'gpt-4o', true)
-      const data = JSON.parse(response)
-      setQuestions(data.questions)
-      setShowQuiz(true)
-      toast.success('تم إنشاء الاختبار بنجاح!', { id: 'quiz-gen' })
+      const response = await window.spark.llm(promptText, 'gpt-4o', true)
+      const quizData = JSON.parse(response) as QuizData
+      
+      setQuiz(quizData)
+      toast.success('تم إنشاء الاختبار بنجاح!')
     } catch (error) {
-      console.error('Quiz generation error:', error)
-      toast.error('حدث خطأ في إنشاء الاختبار', { id: 'quiz-gen' })
+      console.error('Error generating quiz:', error)
+      toast.error('حدث خطأ في إنشاء الاختبار')
     } finally {
       setIsGenerating(false)
     }
   }
 
   const copyToClipboard = () => {
-    const text = questions.map((q, idx) => 
-      `السؤال ${idx + 1} (${q.type}):\n${q.question}\n\nالإجابة النموذجية:\n${q.answer}\n\n`
-    ).join('---\n\n')
+    if (!quiz) return
+    
+    let text = `${quiz.title}\n`
+    text += `المجموع الكلي: ${quiz.totalMarks} درجة\n`
+    text += `\n${'='.repeat(60)}\n\n`
+    
+    quiz.questions.forEach((q, idx) => {
+      text += `السؤال ${idx + 1}: ${q.type} (${q.marks} درجات)\n`
+      text += `المهارة: ${q.skill}\n\n`
+      text += `${q.question}\n`
+      text += `\n${'-'.repeat(60)}\n\n`
+    })
     
     navigator.clipboard.writeText(text)
-    toast.success('تم نسخ الاختبار!')
+    setCopied(true)
+    toast.success('تم النسخ إلى الحافظة')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const printQuiz = () => {
+    if (!quiz) return
+    window.print()
   }
 
   const downloadQuiz = () => {
-    const text = `اختبار استقصاء: ${experiment.title}\n\n` +
-      questions.map((q, idx) => 
-        `السؤال ${idx + 1} - ${q.type} (المهارة: ${q.skill}):\n${q.question}\n\nالإجابة النموذجية:\n${q.answer}\n\n`
-      ).join('━━━━━━━━━━━━━━━━━━\n\n')
+    if (!quiz) return
+    
+    let text = `${quiz.title}\n`
+    text += `المجموع الكلي: ${quiz.totalMarks} درجة\n`
+    text += `\n${'='.repeat(60)}\n\n`
+    
+    quiz.questions.forEach((q, idx) => {
+      text += `السؤال ${idx + 1}: ${q.type} (${q.marks} درجات)\n`
+      text += `المهارة: ${q.skill}\n\n`
+      text += `${q.question}\n`
+      text += `\n${'-'.repeat(60)}\n\n`
+    })
     
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `اختبار_${experiment.experimentCode || experiment.id}.txt`
-    a.click()
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `اختبار-${experiment.title}.txt`
+    link.click()
     URL.revokeObjectURL(url)
-    toast.success('تم تنزيل الاختبار!')
+    
+    toast.success('تم تحميل الاختبار')
   }
 
   return (
-    <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2 font-cairo text-purple-700">
-          <Sparkle size={24} weight="fill" />
-          مولّد اختبار الاستقصاء الذكي
-        </CardTitle>
-        <p className="text-sm text-muted-foreground font-noto mt-2">
-          اضغط الزر لتوليد اختبار جاهز يغطي جميع مهارات الاستقصاء العلمي (تحديد متغيرات، جدول بيانات، رسم بياني، تحليل، تقييم) - مطابق 100% للتعميم الكويتي
-        </p>
-      </CardHeader>
+    <div className="space-y-4">
+      {!quiz ? (
+        <Card className="border-2 border-dashed">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <Sparkle size={32} weight="fill" className="text-white" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold font-cairo">مولّد الاختبار الذكي</h3>
+                <p className="text-muted-foreground font-noto max-w-md mx-auto">
+                  اضغط لإنشاء اختبار استقصاء شامل مطابق للتعميم السعودي - يتضمن التخطيط، جمع البيانات، الرسم البياني، التحليل، والتقييم
+                </p>
+              </div>
 
-      <CardContent className="space-y-4">
-        {!showQuiz ? (
-          <Button
-            onClick={generateQuiz}
-            disabled={isGenerating}
-            className="w-full gap-2 font-cairo text-lg h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-          >
-            <Sparkle size={20} weight="fill" />
-            {isGenerating ? 'جاري الإنشاء...' : 'إنشاء اختبار تلقائي'}
-          </Button>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowQuiz(false)}
-                className="gap-1.5 font-cairo"
-              >
-                <Eye size={16} />
-                إخفاء
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copyToClipboard}
-                className="gap-1.5 font-cairo"
-              >
-                <Clipboard size={16} />
-                نسخ
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadQuiz}
-                className="gap-1.5 font-cairo"
-              >
-                <Download size={16} />
-                تنزيل
-              </Button>
-              <Button
-                size="sm"
+              <Button 
                 onClick={generateQuiz}
                 disabled={isGenerating}
-                className="gap-1.5 font-cairo"
+                size="lg"
+                className="gap-2 font-cairo"
               >
-                <Sparkle size={16} weight="fill" />
-                إعادة التوليد
+                {isGenerating ? (
+                  <>
+                    <Sparkle size={20} className="animate-spin" />
+                    جاري الإنشاء...
+                  </>
+                ) : (
+                  <>
+                    <Sparkle size={20} weight="fill" />
+                    إنشاء اختبار استقصاء
+                  </>
+                )}
               </Button>
-            </div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key="questions"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-4"
-              >
-                {questions.map((q, idx) => (
-                  <Card key={idx} className="border-l-4 border-l-purple-500">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-purple-100 text-purple-700 font-cairo">
+              <div className="text-xs text-muted-foreground font-cairo">
+                يستغرق حوالي 10-15 ثانية
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <CardTitle className="text-2xl font-cairo mb-2">
+                    {quiz.title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="font-cairo">
+                      المجموع الكلي: {quiz.totalMarks} درجة
+                    </Badge>
+                    <Badge variant="secondary" className="font-cairo">
+                      {quiz.questions.length} أسئلة
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyToClipboard}
+                    className="gap-2 font-cairo"
+                  >
+                    {copied ? (
+                      <>
+                        <CheckCircle size={16} weight="fill" className="text-green-500" />
+                        تم النسخ
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} />
+                        نسخ
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={printQuiz}
+                    className="gap-2 font-cairo"
+                  >
+                    <Printer size={16} />
+                    طباعة
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadQuiz}
+                    className="gap-2 font-cairo"
+                  >
+                    <Download size={16} />
+                    تحميل
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <ScrollArea className="h-[500px]">
+            <div className="space-y-4 pr-4">
+              {quiz.questions.map((question, idx) => (
+                <Card key={idx} className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className="font-cairo bg-primary">
                             السؤال {idx + 1}
                           </Badge>
                           <Badge variant="outline" className="font-cairo">
-                            {q.type}
+                            {question.type}
+                          </Badge>
+                          <Badge variant="secondary" className="font-cairo">
+                            {question.marks} درجات
                           </Badge>
                         </div>
-                        <Badge variant="secondary" className="font-cairo text-xs">
-                          {q.skill}
-                        </Badge>
+                        <div className="text-xs text-muted-foreground font-cairo">
+                          المهارة: {question.skill}
+                        </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <p className="font-semibold text-foreground font-cairo mb-2">
-                          السؤال:
-                        </p>
-                        <p className="text-sm font-noto bg-white p-3 rounded-lg border">
-                          {q.question}
-                        </p>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="prose prose-sm max-w-none font-noto whitespace-pre-wrap">
+                      {question.question}
+                    </div>
+                    
+                    {'rubric' in question && (question as any).rubric && (
+                      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 font-cairo">
+                          معايير التقييم:
+                        </div>
+                        <ul className="text-sm space-y-1 font-noto">
+                          {(question as any).rubric.map((item: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-primary">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <div>
-                        <p className="font-semibold text-green-700 font-cairo mb-2">
-                          ✓ الإجابة النموذجية:
-                        </p>
-                        <p className="text-sm font-noto bg-green-50 p-3 rounded-lg border border-green-200 text-green-900">
-                          {q.answer}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <Card className="bg-accent/10 border-accent/30">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Sparkle size={24} weight="fill" className="text-accent" />
+                <p className="text-sm font-noto flex-1">
+                  يمكنك تعديل الأسئلة حسب احتياجاتك أو إنشاء اختبار جديد بضغطة زر
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setQuiz(null)}
+                  className="font-cairo"
+                >
+                  إنشاء اختبار جديد
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   )
 }

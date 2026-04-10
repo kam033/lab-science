@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu } from '@phosphor-icons/react'
+import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu, ClipboardText } from '@phosphor-icons/react'
 import { MembraneTransportSim } from '@/components/simulations/MembraneTransportSim'
 import { PHTitrationSim } from '@/components/simulations/PHTitrationSim'
 import { InverseSquareLawSim } from '@/components/simulations/InverseSquareLawSim'
@@ -14,6 +14,7 @@ import { PhotosynthesisSim } from '@/components/simulations/PhotosynthesisSim'
 import { AccelerationSim } from '@/components/simulations/AccelerationSim'
 import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
 import { TitrationCurveSim } from '@/components/simulations/TitrationCurveSim'
+import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -136,8 +137,9 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
         <ScrollArea className="h-[calc(90vh-200px)]">
           <div className="p-6 space-y-6">
             <Tabs defaultValue={hasSimulation ? "simulation" : "overview"} dir="rtl">
-              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-6' : 'grid-cols-5'}`}>
+              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-7' : 'grid-cols-6'}`}>
                 {hasSimulation && <TabsTrigger value="simulation"><Cpu size={16} className="ml-1 inline" />المختبر</TabsTrigger>}
+                <TabsTrigger value="quiz"><ClipboardText size={16} className="ml-1 inline" />الاختبار</TabsTrigger>
                 <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
                 <TabsTrigger value="components">المكونات</TabsTrigger>
                 <TabsTrigger value="apparatus">الأجهزة</TabsTrigger>
@@ -150,6 +152,10 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
                   {getSimulationComponent()}
                 </TabsContent>
               )}
+
+              <TabsContent value="quiz" className="mt-4">
+                <SmartQuizGenerator experiment={experiment} />
+              </TabsContent>
 
               <TabsContent value="overview" className="space-y-4 mt-4">
                 {experiment.objectives && experiment.objectives.length > 0 && (
