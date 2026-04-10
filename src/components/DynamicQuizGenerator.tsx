@@ -48,32 +48,47 @@ export function DynamicQuizGenerator({ experiment }: DynamicQuizGeneratorProps) 
   const isPinned = pinnedQuiz?.id === currentQuiz?.id
 
   const generateRandomValues = () => {
-    const baseValues = {
-      distances: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-      intensities: [100, 25, 11.1, 6.25, 4, 2.78, 2.04, 1.56, 1.23, 1],
-      temperatures: [20, 30, 40, 50, 60],
-      concentrations: [0.5, 1.0, 1.5, 2.0, 2.5],
-      times: [0, 10, 20, 30, 40, 50],
-      volumes: [0, 5, 10, 15, 20, 25],
-      phValues: [1, 2, 3, 7, 11, 12, 13]
-    }
-
-    const randomFactor = 0.8 + Math.random() * 0.4
+    const offset = Math.floor(Math.random() * 5)
+    const randomFactor = 0.7 + Math.random() * 0.6
+    
+    const baseDistances = [8, 12, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80]
+    const baseIntensities = [120, 95, 45, 25, 18, 12, 8.5, 6.2, 4.8, 3.5, 2.8, 2.1]
+    const baseTemperatures = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+    const baseConcentrations = [0.2, 0.5, 0.8, 1.0, 1.3, 1.5, 1.8, 2.0, 2.3, 2.5, 2.8, 3.0]
+    const baseTimes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60]
+    const baseVolumes = [0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 30]
+    const basePHValues = [1.2, 2.5, 3.8, 4.5, 7.0, 9.5, 11.2, 12.8, 13.5]
+    
+    const distances = baseDistances.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(1))
+    const intensities = baseIntensities.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(2))
+    const temperatures = baseTemperatures.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(0))
+    const concentrations = baseConcentrations.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(2))
+    const times = baseTimes.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(0))
+    const volumes = baseVolumes.slice(offset, offset + 6).map(v => +(v * randomFactor).toFixed(1))
+    const phValues = basePHValues.slice(Math.floor(Math.random() * 3), 7).map(v => +(v * randomFactor).toFixed(1))
     
     return {
-      distances: baseValues.distances.map(v => +(v * randomFactor).toFixed(1)),
-      intensities: baseValues.intensities.map(v => +(v * randomFactor).toFixed(2)),
-      temperatures: baseValues.temperatures.map(v => +(v * randomFactor).toFixed(0)),
-      concentrations: baseValues.concentrations.map(v => +(v * randomFactor).toFixed(2)),
-      times: baseValues.times.map(v => +(v * randomFactor).toFixed(0)),
-      volumes: baseValues.volumes.map(v => +(v * randomFactor).toFixed(1)),
-      phValues: baseValues.phValues.map(v => +(v * randomFactor).toFixed(1))
+      distances,
+      intensities,
+      temperatures,
+      concentrations,
+      times,
+      volumes,
+      phValues
     }
   }
 
   const generateQuizTemplate = (): GeneratedQuiz => {
     const quizId = `${experiment.id}-v${variantNumber}-${Date.now()}`
     const values = generateRandomValues()
+    
+    const numReadings = 4 + Math.floor(Math.random() * 3)
+    const selectedDistances = values.distances.slice(0, numReadings)
+    const selectedIntensities = values.intensities.slice(0, numReadings)
+    const selectedConcentrations = values.concentrations.slice(0, numReadings)
+    const selectedTimes = values.times.slice(0, numReadings)
+    const selectedTemperatures = values.temperatures.slice(0, numReadings)
+    const selectedVolumes = values.volumes.slice(0, numReadings)
     
     const templates = {
       physics: {
@@ -92,39 +107,47 @@ export function DynamicQuizGenerator({ experiment }: DynamicQuizGeneratorProps) 
         
         dataCollection: `صمم جدول بيانات مناسب للتجربة:
 
-المسافات المقترحة (m): ${values.distances.slice(0, 5).join(', ')}
+📊 القيم المقترحة:
+${experiment.variables?.independent || 'المسافة'}: ${selectedDistances.join(' m, ')} m
 
-أ) حدد عناوين الأعمدة مع الوحدات
-ب) كم عدد القراءات المناسب؟ ولماذا؟
-ج) ما نطاق القيم المتوقعة؟
-د) كيف تحسن دقة القياس؟`,
+أ) حدد عناوين الأعمدة مع الوحدات الصحيحة
+ب) لماذا نحتاج ${numReadings} قراءات على الأقل؟
+ج) ما نطاق القيم المتوقعة لـ ${experiment.variables?.dependent || 'القياس'}؟
+د) كيف تحسن دقة القياس؟ (اقترح طريقتين)`,
 
-        analysis: `بناءً على البيانات التالية:
+        analysis: `بناءً على البيانات التجريبية التالية:
 
-${values.distances.slice(0, 5).map((d, i) => `عند ${d} m: القيمة = ${values.intensities[i]}`).join('\n')}
+📈 جدول النتائج:
+${selectedDistances.map((d, i) => `| ${experiment.variables?.independent || 'المسافة'} = ${d} m | ${experiment.variables?.dependent || 'القيمة'} = ${selectedIntensities[i]} |`).join('\n')}
 
-أ) ارسم رسماً بيانياً:
-   - المحور الأفقي: ${experiment.variables?.independent || 'المسافة'}
-   - المحور الرأسي: ${experiment.variables?.dependent || 'الشدة'}
+أ) ارسم رسماً بيانياً كاملاً:
+   - المحور الأفقي (x): ${experiment.variables?.independent || 'المسافة (m)'}
+   - المحور الرأسي (y): ${experiment.variables?.dependent || 'الشدة'}
+   - ضع عنواناً مناسباً وعلامات على المحاور
    
-ب) صف العلاقة (طردية/عكسية/أسية)
+ب) صف نمط العلاقة بين المتغيرين (خطية طردية؟ عكسية؟ تربيعية؟)
 
-ج) احسب قيمة فيزيائية من الرسم (الميل أو الثابت)
+ج) احسب قيمة فيزيائية من الرسم:
+   - إذا كان خطياً: الميل = _______
+   - إذا كان منحنياً: الثابت = _______
 
-د) استنتج القانون الفيزيائي`,
+د) استنتج القانون الفيزيائي وقارنه بالنظرية`,
 
-        evaluation: `قيّم التجربة:
+        evaluation: `قيّم دقة وموثوقية التجربة:
 
-أ) حدد 3 مصادر خطأ:
-   1. خطأ في القياس (±___ وحدة)
-   2. ...
-   3. ...
+أ) حدد 3 مصادر خطأ محتملة:
+   1. خطأ في قياس ${experiment.variables?.independent || 'المتغير المستقل'} (±_____ وحدة)
+   2. خطأ في قياس ${experiment.variables?.dependent || 'المتغير التابع'} (±_____ وحدة)
+   3. عامل خارجي يؤثر على النتائج: _______
 
-ب) اقترح 3 تحسينات عملية
+ب) اقترح 3 تحسينات عملية لزيادة الدقة:
+   1. _______
+   2. _______
+   3. _______
 
-ج) هل النتائج دقيقة؟ احسب نسبة الخطأ
+ج) احسب نسبة الخطأ إذا كانت القيمة النظرية معروفة
 
-د) اقترح امتداداً للتجربة`
+د) اقترح امتداداً للتجربة (دراسة متغير إضافي أو نطاق أوسع)`
       },
       
       chemistry: {
@@ -135,47 +158,63 @@ ${values.distances.slice(0, 5).map((d, i) => `عند ${d} m: القيمة = ${va
    - التابع: ${experiment.variables?.dependent || 'معدل التفاعل'}
    - الثابتة: ${experiment.variables?.controlled?.join(' • ') || 'درجة الحرارة، الحجم'}
 
-ب) فرضية قابلة للاختبار
+ب) فرضية قابلة للاختبار (إذا _____ يزيد، فإن _____ ...)
 
-ج) الأدوات: ${experiment.apparatus.slice(0, 3).join(' • ')}
+ج) الأدوات والمواد: ${experiment.apparatus.slice(0, 3).join(' • ')}
 
-د) إجراءات السلامة (3 نقاط محددة)`,
+د) إجراءات السلامة (3 نقاط محددة مع التبرير)`,
 
-        dataCollection: `صمم جدول للبيانات:
+        dataCollection: `صمم جدول شامل للبيانات:
 
-التراكيز المقترحة (mol/L): ${values.concentrations.join(', ')}
-الأزمنة (s): ${values.times.slice(0, 6).join(', ')}
+📊 نطاق التجربة:
+التراكيز المقترحة (mol/L): ${selectedConcentrations.join(', ')}
+الأزمنة لكل تركيز (s): ${selectedTimes.join(', ')}
 
-أ) عناوين الأعمدة والوحدات
-ب) عدد التكرارات المناسب
-ج) كيف تحسب المعدل؟
-د) ما دقة القياس المطلوبة؟`,
+أ) صمم جدول بياني كامل يشمل:
+   - عناوين الأعمدة بالعربية
+   - الوحدات الصحيحة
+   - أعمدة للقراءات المكررة
+   
+ب) لماذا نحتاج ${numReadings} تراكيز مختلفة على الأقل؟
 
-        analysis: `البيانات المسجلة:
+ج) كيف تحسب معدل التفاعل من الزمن المقاس؟ (اكتب المعادلة)
 
-${values.concentrations.map((c, i) => `تركيز ${c} mol/L: الزمن = ${values.times[i]} s`).join('\n')}
+د) ما دقة الأدوات المستخدمة وكيف تؤثر على النتائج؟`,
 
-أ) ارسم منحنى العلاقة:
-   - المحور x: التركيز (mol/L)
-   - المحور y: ${experiment.variables?.dependent || 'معدل التفاعل'}
+        analysis: `البيانات التجريبية المسجلة:
 
-ب) احسب معدل التفاعل عند تركيز محدد
+📈 جدول النتائج:
+${selectedConcentrations.map((c, i) => `| التركيز = ${c} mol/L | الزمن = ${selectedTimes[i]} s | معدل التفاعل = ${(1/selectedTimes[i]).toFixed(4)} s⁻¹ |`).join('\n')}
 
-ج) ما رتبة التفاعل؟
+أ) ارسم منحنى العلاقة البيانية:
+   - المحور x: ${experiment.variables?.independent || 'التركيز (mol/L)'}
+   - المحور y: ${experiment.variables?.dependent || 'معدل التفاعل (s⁻¹)'}
+   - استخدم مقياس مناسب وعلامات واضحة
 
-د) اربط النتائج بنظرية التصادم`,
+ب) احسب معدل التفاعل عند تركيز ${selectedConcentrations[2]} mol/L
 
-        evaluation: `تقييم وتحسين:
+ج) حدد رتبة التفاعل من الرسم البياني (صفر، أول، ثاني)
 
-أ) مصادر الخطأ (3):
-   - خطأ في قياس الحجم
-   - ...
+د) اربط النتائج بنظرية التصادم (التردد، الطاقة، التوجه)`,
 
-ب) تحسينات مقترحة (3)
+        evaluation: `تقييم شامل للتجربة:
 
-ج) قارن النتائج بالقيم النظرية
+أ) مصادر الخطأ الكيميائية (3):
+   1. خطأ في قياس الحجم: ±_____ mL
+   2. خطأ في قياس الزمن: ±_____ s
+   3. عوامل خارجية: _______
 
-د) تطبيق عملي للنتائج`
+ب) تحسينات مقترحة (3):
+   1. استخدام أجهزة أدق (مثل _______)
+   2. _______
+   3. _______
+
+ج) قارن القيمة المحسوبة لمعدل التفاعل بالقيمة النظرية:
+   - القيمة التجريبية: _______
+   - القيمة النظرية: _______
+   - نسبة الخطأ = _______٪
+
+د) تطبيق عملي: كيف يمكن استخدام هذه النتائج في الصناعة أو الحياة اليومية؟`
       },
 
       biology: {
@@ -186,53 +225,86 @@ ${values.concentrations.map((c, i) => `تركيز ${c} mol/L: الزمن = ${val
    - التابع: ${experiment.variables?.dependent || 'الاستجابة المقاسة'}
    - الثابتة: ${experiment.variables?.controlled?.join(' • ') || 'الظروف البيئية'}
 
-ب) الفرضية الحيوية
+ب) الفرضية الحيوية (العلاقة المتوقعة بين المتغيرات)
 
-ج) المواد والأدوات: ${experiment.apparatus.slice(0, 3).join(' • ')}
+ج) المواد والأدوات الحيوية: ${experiment.apparatus.slice(0, 3).join(' • ')}
 
-د) السلامة الحيوية (3 إجراءات)`,
+د) إجراءات السلامة الحيوية (3 نقاط مع التبرير):
+   1. _______
+   2. _______
+   3. _______`,
 
-        dataCollection: `تصميم جدول الملاحظات:
+        dataCollection: `تصميم جدول شامل للملاحظات الحيوية:
 
-${experiment.title.includes('خميرة') ? 
-  `التراكيز (g/L): ${values.concentrations.join(', ')}\nالأزمنة (min): ${values.times.slice(0, 6).join(', ')}` :
-  experiment.title.includes('ضوئي') ?
-  `الأطوال الموجية (nm): 400, 500, 600, 700\nمعدل الفقاعات (/min): ${[5, 12, 8, 3].join(', ')}` :
-  `القيم المقاسة: ${values.distances.slice(0, 5).join(', ')}`
+📊 بيانات الاستقصاء:
+${experiment.title.includes('خميرة') || experiment.title.includes('تنفس') ? 
+  `التراكيز (g/L): ${selectedConcentrations.join(', ')}\nأزمنة الاستجابة (min): ${selectedTimes.join(', ')}` :
+  experiment.title.includes('ضوئي') || experiment.title.includes('نبات') ?
+  `شدة الضوء (lux): ${selectedDistances.map(d => d * 100).join(', ')}\nمعدل الفقاعات (/min): ${selectedIntensities.map(i => Math.floor(i/10)).join(', ')}` :
+  experiment.title.includes('انقسام') || experiment.title.includes('خلية') ?
+  `عدد الخلايا المفحوصة: ${selectedDistances.map(d => Math.floor(d * 10)).join(', ')}\nالأطوار المرصودة: متعددة` :
+  `القيم المقاسة: ${selectedConcentrations.join(', ')}`
 }
 
-أ) تصميم الجدول الكامل
-ب) عدد العينات والتكرارات
-ج) كيفية القياس الدقيق
-د) معايير الملاحظة`,
+أ) صمم جدول بياني كامل يشمل:
+   - عناوين الأعمدة
+   - الوحدات الحيوية المناسبة
+   - أعمدة للتكرارات (${numReadings} عينات على الأقل)
+
+ب) لماذا نحتاج عينات متعددة في الدراسات الحيوية؟
+
+ج) كيفية القياس الدقيق للمتغير التابع؟
+
+د) معايير الملاحظة والتسجيل (الوضوح، الدقة، التوقيت)`,
 
         analysis: `تحليل النتائج الحيوية:
 
-البيانات:
-${experiment.title.includes('انقسام') ? 
-  `الطور البيني: 60%, الطور التمهيدي: 25%, الطور الاستوائي: 10%, الطور الانفصالي: 5%` :
-  `${values.concentrations.slice(0, 4).map((c, i) => `${c} g/L → ${values.times[i]} دقيقة`).join('\n')}`
+📈 البيانات المسجلة:
+${experiment.title.includes('انقسام') || experiment.title.includes('mitosis') || experiment.title.includes('meiosis') ? 
+  `نسب الأطوار المرصودة:\n- الطور البيني: ${55 + Math.floor(Math.random() * 15)}%\n- الطور التمهيدي: ${20 + Math.floor(Math.random() * 10)}%\n- الطور الاستوائي: ${8 + Math.floor(Math.random() * 5)}%\n- الطور الانفصالي: ${5 + Math.floor(Math.random() * 3)}%\n- الطور النهائي: ${3 + Math.floor(Math.random() * 3)}%` :
+  experiment.title.includes('خميرة') || experiment.title.includes('yeast') ?
+  `${selectedConcentrations.slice(0, 4).map((c, i) => `تركيز ${c} g/L → زمن التغيير = ${selectedTimes[i]} دقيقة (معدل التنفس = ${(1/selectedTimes[i]).toFixed(3)} min⁻¹)`).join('\n')}` :
+  experiment.title.includes('ضوئي') || experiment.title.includes('نبات') ?
+  `${selectedDistances.slice(0, 4).map((d, i) => `شدة ضوء ${Math.floor(d * 100)} lux → ${Math.floor(selectedIntensities[i]/10)} فقاعة/دقيقة`).join('\n')}` :
+  `${selectedConcentrations.slice(0, 4).map((c, i) => `${c} وحدة → ${selectedTimes[i]} دقيقة`).join('\n')}`
 }
 
-أ) ارسم تمثيلاً بيانياً مناسباً
+أ) ارسم تمثيلاً بيانياً مناسباً:
+   - نوع الرسم (خطي، أعمدة، دائري) حسب طبيعة البيانات
+   - المحاور والعناوين
+   - مقياس مناسب
 
-ب) احسب المعدل أو النسبة
+ب) احسب المعدل أو النسبة المئوية من البيانات
 
-ج) ما العلاقة البيولوجية؟
+ج) صف العلاقة البيولوجية بين المتغيرات:
+   ${experiment.title.includes('انقسام') ? '- ما الطور الأطول زمنياً ولماذا؟' : ''}
+   ${experiment.title.includes('تنفس') || experiment.title.includes('ضوئي') ? '- هل العلاقة طردية أم عكسية؟' : ''}
+   - ما التفسير البيولوجي؟
 
-د) اربط بالعمليات الخلوية`,
+د) اربط النتائج بالعمليات الخلوية والجزيئية`,
 
-        evaluation: `التقييم البيولوجي:
+        evaluation: `التقييم الشامل للاستقصاء الحيوي:
 
-أ) مصادر الخطأ الحيوية (3):
-   - تباين العينات البيولوجية
-   - ...
+أ) مصادر الخطأ الحيوية المحتملة (3):
+   1. التباين البيولوجي الطبيعي بين العينات
+   2. خطأ في ${experiment.title.includes('مجهر') || experiment.title.includes('انقسام') ? 'العد أو التصنيف المجهري' : 'القياس أو التوقيت'}
+   3. عوامل بيئية غير محكومة: _______
 
-ب) تحسينات التجربة (3)
+ب) تحسينات منهجية مقترحة (3):
+   1. زيادة حجم العينة إلى _____ عينة
+   2. ${experiment.title.includes('مجهر') ? 'استخدام مجهر رقمي مع برنامج تحليل صور' : 'استخدام أجهزة قياس أوتوماتيكية'}
+   3. تحسين الضبط البيئي: _______
 
-ج) موثوقية النتائج البيولوجية
+ج) تقييم موثوقية النتائج البيولوجية:
+   - هل العينة ممثلة؟
+   - هل النتائج قابلة للتكرار؟
+   - حساب الانحراف المعياري أو نطاق القيم
 
-د) تطبيقات حياتية`
+د) التطبيقات العملية والحياتية:
+   ${experiment.title.includes('انقسام') ? '- كيف تفيد هذه المعرفة في فهم السرطان أو الوراثة؟' : ''}
+   ${experiment.title.includes('تنفس') ? '- ما التطبيقات الصناعية (خبز، كحول، إنتاج طاقة)؟' : ''}
+   ${experiment.title.includes('ضوئي') ? '- كيف يمكن تحسين إنتاج المحاصيل أو الزراعة المحمية؟' : ''}
+   - اقترح بحثاً إضافياً في هذا المجال`
       }
     }
 
@@ -278,9 +350,13 @@ ${experiment.title.includes('انقسام') ?
     setTimeout(() => {
       const newQuiz = generateQuizTemplate()
       setCurrentQuiz(newQuiz)
-      setVariantNumber(prev => prev + 1)
+      const nextVariant = variantNumber + 1
+      setVariantNumber(nextVariant)
       setIsGenerating(false)
-      toast.success(`تم إنشاء النموذج ${newQuiz.variant}`)
+      toast.success(`✨ تم إنشاء نموذج جديد #${newQuiz.variant} بأرقام وبيانات مختلفة!`, {
+        description: 'جميع القيم والجداول تم تحديثها',
+        duration: 3000
+      })
     }, 800)
   }
 
