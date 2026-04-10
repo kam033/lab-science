@@ -15,6 +15,7 @@ import { AccelerationSim } from '@/components/simulations/AccelerationSim'
 import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
 import { TitrationCurveSim } from '@/components/simulations/TitrationCurveSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
+import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
 interface ExperimentDetailsProps {
   experiment: Experiment | null
@@ -137,9 +138,10 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
         <ScrollArea className="h-[calc(90vh-200px)]">
           <div className="p-6 space-y-6">
             <Tabs defaultValue={hasSimulation ? "simulation" : "overview"} dir="rtl">
-              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-7' : 'grid-cols-6'}`}>
+              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-8' : 'grid-cols-7'}`}>
                 {hasSimulation && <TabsTrigger value="simulation"><Cpu size={16} className="ml-1 inline" />المختبر</TabsTrigger>}
-                <TabsTrigger value="quiz"><ClipboardText size={16} className="ml-1 inline" />الاختبار</TabsTrigger>
+                <TabsTrigger value="dynamic-quiz"><ClipboardText size={16} className="ml-1 inline" />نماذج متعددة</TabsTrigger>
+                <TabsTrigger value="quiz"><ClipboardText size={16} className="ml-1 inline" />ذكي</TabsTrigger>
                 <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
                 <TabsTrigger value="components">المكونات</TabsTrigger>
                 <TabsTrigger value="apparatus">الأجهزة</TabsTrigger>
@@ -152,6 +154,10 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
                   {getSimulationComponent()}
                 </TabsContent>
               )}
+
+              <TabsContent value="dynamic-quiz" className="mt-4">
+                <DynamicQuizGenerator experiment={experiment} />
+              </TabsContent>
 
               <TabsContent value="quiz" className="mt-4">
                 <SmartQuizGenerator experiment={experiment} />
