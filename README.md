@@ -2,6 +2,49 @@
 
 منصة تعليمية تفاعلية لتجارب العلوم (الفيزياء، الكيمياء، الأحياء) للصف الثاني عشر، مع مختبرات افتراضية ومولد اختبارات ذكي.
 
+## ⚠️ مشكلة في رفع المشروع على GitHub؟
+
+<div align="center">
+
+### 🚨 واجهت خطأ "Failed to fetch"?
+
+**الحل موجود! اختر الدليل المناسب لك:**
+
+[![Quick Fix](https://img.shields.io/badge/⚡_حل_سريع-3_دقائق-brightgreen?style=for-the-badge)](./QUICK_FIX_GITHUB.md)
+[![Visual Guide](https://img.shields.io/badge/📖_دليل_مصور-10_دقائق-blue?style=for-the-badge)](./VISUAL_GUIDE_GITHUB.md)
+[![All Guides](https://img.shields.io/badge/📚_جميع_الأدلة-شامل-orange?style=for-the-badge)](./INDEX_GUIDES.md)
+
+</div>
+
+<details>
+<summary>📋 <strong>اضغط لرؤية قائمة الأدلة الكاملة</strong></summary>
+
+### 🎯 الأدلة المتوفرة:
+
+| الدليل | الوقت | الأفضل لـ |
+|--------|------|----------|
+| **[INDEX_GUIDES.md](./INDEX_GUIDES.md)** | - | 📚 فهرس شامل لجميع الأدلة |
+| **[FINAL_SOLUTION.md](./FINAL_SOLUTION.md)** | 30 ثانية | 🖨️ حل مختصر للطباعة |
+| **[QUICK_FIX_GITHUB.md](./QUICK_FIX_GITHUB.md)** | 3 دقائق | ⚡ الحل السريع |
+| **[VISUAL_GUIDE_GITHUB.md](./VISUAL_GUIDE_GITHUB.md)** | 10 دقائق | 🎓 المبتدئين |
+| **[CHECKLIST.md](./CHECKLIST.md)** | مع التنفيذ | ✅ قائمة تحقق خطوة بخطوة |
+| **[GITHUB_UPLOAD_TROUBLESHOOTING.md](./GITHUB_UPLOAD_TROUBLESHOOTING.md)** | حسب الحاجة | 🔧 حل المشاكل |
+| **[PROBLEM_EXPLANATION.md](./PROBLEM_EXPLANATION.md)** | 5 دقائق | 🧠 الفهم التقني |
+| **[GIT_COMMANDS_REFERENCE.md](./GIT_COMMANDS_REFERENCE.md)** | مرجع | 💻 أوامر Git كاملة |
+| **[SOLUTION_SUMMARY.md](./SOLUTION_SUMMARY.md)** | 1 دقيقة | 📝 ملخص سريع |
+| **[SETUP.md](./SETUP.md)** | 15 دقيقة | ⚙️ الإعداد الكامل |
+| **[QUICK_FIX_EN.md](./QUICK_FIX_EN.md)** | 3 minutes | 🌍 English speakers |
+
+**💡 مستعجل؟** ابدأ من [QUICK_FIX_GITHUB.md](./QUICK_FIX_GITHUB.md)
+
+**🔰 مبتدئ؟** اقرأ [VISUAL_GUIDE_GITHUB.md](./VISUAL_GUIDE_GITHUB.md)
+
+**🤔 تريد فهم المشكلة؟** راجع [PROBLEM_EXPLANATION.md](./PROBLEM_EXPLANATION.md)
+
+</details>
+
+---
+
 ## 🌟 المميزات
 
 ### 🔬 مختبرات تفاعلية

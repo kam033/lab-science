@@ -1,20 +1,30 @@
 # 🚀 دليل رفع المشروع على GitHub
 
+## ⚠️ هل واجهت مشكلة "Failed to fetch"؟
+**اقرأ ملف:** [`GITHUB_UPLOAD_TROUBLESHOOTING.md`](./GITHUB_UPLOAD_TROUBLESHOOTING.md) للحلول الكاملة
+
+---
+
 ## الخطوات المطلوبة
 
 ### 1. إنشاء حساب GitHub (إن لم يكن لديك)
 - اذهب إلى [github.com](https://github.com)
 - سجل حساب جديد
 
-### 2. إنشاء Repository جديد
-1. اضغط على زر **"+"** في الأعلى
-2. اختر **"New repository"**
-3. املأ البيانات:
+### 2. إنشاء Repository جديد على GitHub
+
+**مهم:** يجب إنشاء الـ repository على موقع GitHub أولاً!
+
+1. اذهب إلى [github.com/new](https://github.com/new)
+2. املأ البيانات:
    - **Repository name**: `science-lab-grade12` (أو أي اسم تريده)
    - **Description**: `منصة تعليمية تفاعلية لتجارب العلوم للصف الثاني عشر`
    - اختر **Public** أو **Private**
-   - **لا تختر** "Initialize with README" (لأنه موجود بالفعل)
-4. اضغط **"Create repository"**
+   - **⚠️ لا تختر** "Add a README file" (لأنه موجود بالفعل)
+   - **⚠️ لا تختر** "Add .gitignore"
+   - **⚠️ لا تختر** "Choose a license"
+3. اضغط **"Create repository"**
+4. **احفظ رابط الـ repository** (سنحتاجه في الخطوة التالية)
 
 ### 3. تحضير المشروع محلياً
 
