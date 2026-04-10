@@ -6,18 +6,24 @@ import { ExperimentDetails } from '@/components/ExperimentDetails'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Flask, Atom, Leaf, Star, MagnifyingGlass, FunnelSimple, Sparkle } from '@phosphor-icons/react'
+import { Flask, Atom, Leaf, Star, MagnifyingGlass, FunnelSimple, Sparkle, Briefcase } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
+import ProjectsPortfolio from '@/ProjectsPortfolio'
 
 function App() {
+  const [showProjects, setShowProjects] = useState(false)
   const [favorites, setFavorites] = useKV<string[]>('experiment-favorites', [])
   const [selectedExperiment, setSelectedExperiment] = useState<Experiment | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+
+  if (showProjects) {
+    return <ProjectsPortfolio onBackToLab={() => setShowProjects(false)} />
+  }
 
   const allSkills = useMemo(() => {
     const skillSet = new Set<string>()
@@ -88,6 +94,17 @@ function App() {
         </div>
         
         <div className="relative container mx-auto px-4 py-12">
+          <div className="absolute top-4 left-4">
+            <Button
+              variant="secondary"
+              onClick={() => setShowProjects(true)}
+              className="gap-2 font-cairo bg-white/10 hover:bg-white/20 text-white border-white/20"
+            >
+              <Briefcase size={18} />
+              المشاريع
+            </Button>
+          </div>
+          
           <div className="flex items-center justify-center gap-3 mb-4">
             <Sparkle size={40} weight="fill" className="text-white/90" />
             <h1 className="text-4xl md:text-5xl font-bold text-white font-cairo">
