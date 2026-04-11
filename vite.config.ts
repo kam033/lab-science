@@ -1,21 +1,27 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig, PluginOption } from "vite";
-
-import sparkPlugin from "@github/spark/spark-vite-plugin";
-import createIconImportProxy from "@github/spark/vitePhosphorIconProxyPlugin";
 import { resolve } from 'path'
 
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
+const isSparkEnv = !!process.env.GITHUB_SPARK
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(async () => {
+  const sparkPlugins: PluginOption[] = []
+
+  if (isSparkEnv) {
+    const { default: sparkPlugin } = await import("@github/spark/spark-vite-plugin")
+    const { default: createIconImportProxy } = await import("@github/spark/vitePhosphorIconProxyPlugin")
+    sparkPlugins.push(createIconImportProxy() as PluginOption)
+    sparkPlugins.push(sparkPlugin() as PluginOption)
+  }
+
+  return {
   plugins: [
     react(),
     tailwindcss(),
-    // DO NOT REMOVE
-    createIconImportProxy() as PluginOption,
-    sparkPlugin() as PluginOption,
+    ...sparkPlugins,
   ],
   resolve: {
     alias: {
@@ -59,4 +65,5 @@ export default defineConfig({
       },
     },
   },
+  }
 });
