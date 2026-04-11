@@ -1,378 +1,477 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Play, Pause, ArrowClockwise, Sun, Drop } from '@phosphor-icons/react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer,
+} from 'recharts'
 
+// ─── Canvas layout ───────────────────────────────────────────────────────────
+const CW = 560, CH = 380
+const WATER_Y  = 90          // water surface
+const PLANT_CX = 280         // plant center x
+const PLANT_BOT = CH - 20   // plant root y
+const PLANT_TOP = 165        // highest leaf y
+const LEAF_R   = 85          // leaf zone collision radius
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Photon {
+  x: number; y: number; vx: number; vy: number; active: boolean
+}
 interface Bubble {
-  id: number
-  x: number
-  y: number
+  x: number; y: number; r: number; vy: number; alpha: number; active: boolean
+}
+interface CO2Mol {
+  x: number; y: number; vx: number; vy: number
 }
 
-export function PhotosynthesisSim() {
-  const [isRunning, setIsRunning] = useState(false)
-  const [mode, setMode] = useState<'learning' | 'experiment'>('learning')
-  const [lightIntensity, setLightIntensity] = useState(50)
-  const [co2Concentration, setCo2Concentration] = useState(2)
-  const [time, setTime] = useState(0)
-  const [oxygenProduced, setOxygenProduced] = useState(0)
-  const [bubbles, setBubbles] = useState<Bubble[]>([])
-  const [rate, setRate] = useState(0)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function spawnPhoton(lightPct: number): Photon {
+  return {
+    x: 30 + Math.random() * (CW - 60),
+    y: -8,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: 1.2 + (lightPct / 100) * 1.2,
+    active: true,
+  }
+}
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (isRunning) {
-      interval = setInterval(() => {
-        setTime(t => t + 1)
-        
-        const productionRate = (lightIntensity / 100) * co2Concentration * 0.5
-        setRate(productionRate)
-        
-        setOxygenProduced(prev => prev + productionRate)
-        
-        if (Math.random() < productionRate) {
-          setBubbles(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            x: 200 + (Math.random() - 0.5) * 100,
-            y: 280
-          }].slice(-15))
-        }
-      }, 500)
-    }
-    return () => clearInterval(interval)
-  }, [isRunning, lightIntensity, co2Concentration])
+function spawnCO2(): CO2Mol {
+  return {
+    x: TX() + Math.random() * (CW - 2 * TX()),
+    y: WATER_Y + 20 + Math.random() * (CH - WATER_Y - 40),
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+  }
+}
+function TX() { return 25 }
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setBubbles(prev => prev.filter(() => Math.random() > 0.1))
-    }, 100)
-    return () => clearInterval(timer)
-  }, [])
+const co2N = (conc: number) => Math.round(conc * 7)
 
-  const reset = () => {
-    setIsRunning(false)
-    setTime(0)
-    setOxygenProduced(0)
-    setBubbles([])
-    setRate(0)
+// ─── Plant draw helper (called each frame) ───────────────────────────────────
+function drawPlant(ctx: CanvasRenderingContext2D, t: number) {
+  const sway = Math.sin(t * 0.6) * 3
+
+  // Stem
+  ctx.strokeStyle = '#15803d'
+  ctx.lineWidth = 6
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(PLANT_CX, PLANT_BOT)
+  ctx.quadraticCurveTo(PLANT_CX + sway * 2, (PLANT_BOT + PLANT_TOP) / 2, PLANT_CX + sway, PLANT_TOP)
+  ctx.stroke()
+
+  // Leaf pairs
+  const pairs = [
+    { y: PLANT_BOT - 50,  ew: 30, eh: 11, spread: 28 },
+    { y: PLANT_BOT - 100, ew: 32, eh: 12, spread: 30 },
+    { y: PLANT_BOT - 145, ew: 28, eh: 10, spread: 26 },
+    { y: PLANT_BOT - 185, ew: 24, eh: 9,  spread: 22 },
+    { y: PLANT_BOT - 218, ew: 20, eh: 8,  spread: 18 },
+  ]
+
+  ctx.fillStyle = '#16a34a'
+  for (const { y, ew, eh, spread } of pairs) {
+    const sw = sway * 0.6
+    // Left leaf
+    ctx.save()
+    ctx.translate(PLANT_CX - spread + sw, y)
+    ctx.rotate(-Math.PI / 5 + sw * 0.02)
+    ctx.beginPath()
+    ctx.ellipse(0, 0, ew, eh, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    // Right leaf
+    ctx.save()
+    ctx.translate(PLANT_CX + spread + sw, y)
+    ctx.rotate(Math.PI / 5 + sw * 0.02)
+    ctx.beginPath()
+    ctx.ellipse(0, 0, ew, eh, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
   }
 
+  // Root
+  ctx.fillStyle = '#92400e'
+  ctx.beginPath()
+  ctx.ellipse(PLANT_CX, PLANT_BOT, 18, 7, 0, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+export function PhotosynthesisSim() {
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const rafRef     = useRef<number>()
+  const photonsRef = useRef<Photon[]>([])
+  const bubblesRef = useRef<Bubble[]>([])
+  const co2Ref     = useRef<CO2Mol[]>([])
+  const simRef     = useRef({ isRunning: false, time: 0, o2: 0, lastUI: 0 })
+  const lightRef   = useRef(50)
+  const concRef    = useRef(2)
+
+  const [mode, setMode]         = useState<'learning' | 'experiment'>('learning')
+  const [isRunning, setIsRunning] = useState(false)
+  const [light, setLight]       = useState(50)
+  const [co2Conc, setCo2Conc]   = useState(2)
+  const [o2UI, setO2UI]         = useState(0)
+  const [rateUI, setRateUI]     = useState(0)
+  const [elapsed, setElapsed]   = useState(0)
+  const [chart, setChart]       = useState<{ t: number; o2: number }[]>([{ t: 0, o2: 0 }])
+
+  const lastO2Ref = useRef(0)
+
+  const initCO2 = useCallback(() => {
+    co2Ref.current = Array.from({ length: co2N(concRef.current) }, spawnCO2)
+  }, [])
+
+  const reset = useCallback(() => {
+    setIsRunning(false)
+    setO2UI(0); setRateUI(0); setElapsed(0)
+    setChart([{ t: 0, o2: 0 }])
+    photonsRef.current = []
+    bubblesRef.current = []
+    lastO2Ref.current  = 0
+    simRef.current = { isRunning: false, time: 0, o2: 0, lastUI: 0 }
+    initCO2()
+  }, [initCO2])
+
+  // ── Draw loop ───────────────────────────────────────────────────────────────
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const sim = simRef.current
+
+    // ── Physics ─────────────────────────────────────────────────────────────
+    if (sim.isRunning) {
+      sim.time += 1 / 60
+      const L = lightRef.current
+      const C = concRef.current
+
+      // Spawn photons based on light intensity
+      if (Math.random() < (L / 100) * 0.18) {
+        photonsRef.current.push(spawnPhoton(L))
+      }
+
+      // Update photons
+      const newBubbles: Bubble[] = []
+      photonsRef.current = photonsRef.current.map(ph => {
+        if (!ph.active) return ph
+        let { x, y, vx, vy } = ph
+        // Refract at water surface (slow down)
+        if (y > WATER_Y) vy = Math.min(vy, 0.9)
+        x += vx; y += vy
+        if (x < 0 || x > CW || y > CH) return { ...ph, active: false }
+
+        // Check leaf-zone collision
+        const dy = y - PLANT_TOP
+        if (y >= PLANT_TOP - 30 && Math.hypot(x - PLANT_CX, dy) < LEAF_R) {
+          const reactionProb = (C / 5) * 0.055
+          if (Math.random() < reactionProb) {
+            sim.o2 += 0.5
+            newBubbles.push({
+              x: x + (Math.random() - 0.5) * 22,
+              y,
+              r: 3 + Math.random() * 3,
+              vy: -(0.45 + Math.random() * 0.35),
+              alpha: 0.9,
+              active: true,
+            })
+            return { ...ph, active: false }
+          }
+        }
+        return { ...ph, x, y, vx, vy }
+      }).filter(ph => ph.active)
+
+      // Update O2 bubbles
+      bubblesRef.current = [
+        ...bubblesRef.current.map(b => {
+          const y = b.y + b.vy
+          const alpha = b.y < WATER_Y ? b.alpha - 0.04 : b.alpha - 0.005
+          if (alpha <= 0) return { ...b, active: false }
+          return { ...b, y, alpha }
+        }).filter(b => b.active),
+        ...newBubbles,
+      ]
+
+      // Update CO2 molecules (drift, maintain count)
+      co2Ref.current = co2Ref.current.map(c => {
+        let { x, y, vx, vy } = c
+        x += vx; y += vy
+        if (x < 20 || x > CW - 20) vx = -vx
+        if (y < WATER_Y + 10 || y > CH - 20) vy = -vy
+        return { x, y, vx, vy }
+      })
+      if (co2Ref.current.length < co2N(concRef.current)) {
+        co2Ref.current.push(spawnCO2())
+      }
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    const t = sim.time
+
+    // Sky / light source
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, WATER_Y)
+    const li = lightRef.current
+    skyGrad.addColorStop(0, `rgba(255, ${200 + Math.round(li * 0.5)}, ${100 + Math.round(li)}, 0.95)`)
+    skyGrad.addColorStop(1, '#fef9c3')
+    ctx.fillStyle = skyGrad
+    ctx.fillRect(0, 0, CW, WATER_Y)
+
+    // Water body
+    const waterGrad = ctx.createLinearGradient(0, WATER_Y, 0, CH)
+    waterGrad.addColorStop(0, '#bfdbfe')
+    waterGrad.addColorStop(1, '#60a5fa')
+    ctx.fillStyle = waterGrad
+    ctx.fillRect(0, WATER_Y, CW, CH - WATER_Y)
+
+    // Water surface shimmer
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'
+    for (let wx = 0; wx < CW; wx += 40) {
+      const sx = wx + Math.sin(t * 2 + wx * 0.1) * 6
+      ctx.beginPath()
+      ctx.ellipse(sx, WATER_Y, 18, 3, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // Light rays (background)
+    if (li > 5) {
+      const rays = [80, 200, 280, 360, 480]
+      for (const rx of rays) {
+        const grad = ctx.createLinearGradient(rx, 0, rx + 40, WATER_Y)
+        grad.addColorStop(0, `rgba(253,224,71,${li / 400})`)
+        grad.addColorStop(1, 'rgba(253,224,71,0)')
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.moveTo(rx, 0); ctx.lineTo(rx + 40, 0); ctx.lineTo(rx + 60, WATER_Y); ctx.lineTo(rx - 10, WATER_Y)
+        ctx.closePath(); ctx.fill()
+      }
+    }
+
+    // CO2 molecules (small dark-red dots)
+    ctx.fillStyle = 'rgba(153,27,27,0.55)'
+    for (const c of co2Ref.current) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, 3, 0, Math.PI * 2); ctx.fill()
+    }
+
+    // Plant
+    drawPlant(ctx, t)
+
+    // O2 bubbles
+    for (const b of bubblesRef.current) {
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(255,255,255,${b.alpha * 0.55})`; ctx.fill()
+      ctx.strokeStyle = `rgba(147,197,253,${b.alpha})`; ctx.lineWidth = 1; ctx.stroke()
+      if (b.r > 4 && b.alpha > 0.4) {
+        ctx.fillStyle = `rgba(59,130,246,${b.alpha * 0.8})`
+        ctx.font = '5px Arial'; ctx.textAlign = 'center'
+        ctx.fillText('O₂', b.x, b.y + 2)
+      }
+    }
+
+    // Photon particles
+    for (const ph of photonsRef.current) {
+      ctx.beginPath()
+      ctx.arc(ph.x, ph.y, 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#fde047'; ctx.fill()
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.2; ctx.stroke()
+      // Glow
+      ctx.beginPath()
+      ctx.arc(ph.x, ph.y, 9, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(253,224,71,0.18)'; ctx.fill()
+    }
+
+    // Beaker outline
+    ctx.strokeStyle = '#475569'; ctx.lineWidth = 3
+    ctx.strokeRect(1, WATER_Y, CW - 2, CH - WATER_Y - 1)
+
+    // Labels
+    ctx.fillStyle = '#1e3a8a'; ctx.font = '12px Cairo, Arial, sans-serif'; ctx.textAlign = 'center'
+    ctx.fillText('نبات مائي (إيلوديا)', PLANT_CX, CH - 6)
+    ctx.fillStyle = '#78350f'; ctx.font = '11px Cairo, Arial'
+    ctx.fillText('↓ فوتون (ضوء)', CW / 2 + 80, WATER_Y - 8)
+    ctx.fillStyle = '#1d4ed8'
+    ctx.fillText('↑ O₂', PLANT_CX - 70, WATER_Y - 8)
+
+    // O2 counter HUD
+    ctx.fillStyle = 'rgba(15,23,42,0.75)'
+    ctx.beginPath(); ctx.roundRect(CW - 130, 5, 125, 36, 5); ctx.fill()
+    ctx.fillStyle = '#86efac'; ctx.font = 'bold 12px Cairo, Arial'; ctx.textAlign = 'center'
+    ctx.fillText(`O₂: ${sim.o2.toFixed(1)} وحدة`, CW - 67, 28)
+
+    // Timer
+    ctx.fillStyle = 'rgba(15,23,42,0.6)'
+    ctx.beginPath(); ctx.roundRect(5, 5, 80, 26, 4); ctx.fill()
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Cairo, Arial'; ctx.textAlign = 'center'
+    ctx.fillText(`${t.toFixed(1)} ث`, 45, 22)
+
+    // ── UI sync ──────────────────────────────────────────────────────────────
+    if (sim.isRunning && t - sim.lastUI >= 0.5) {
+      sim.lastUI = t
+      const rate = Math.round((sim.o2 - lastO2Ref.current) * 2 * 10) / 10  // per second
+      lastO2Ref.current = sim.o2
+      setO2UI(Math.round(sim.o2 * 10) / 10)
+      setRateUI(rate)
+      setElapsed(Math.round(t * 10) / 10)
+      setChart(prev => [...prev, { t: Math.round(t * 10) / 10, o2: Math.round(sim.o2 * 10) / 10 }])
+    }
+
+    rafRef.current = requestAnimationFrame(draw)
+  }, [])
+
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(draw)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [draw])
+
+  useEffect(() => { simRef.current.isRunning = isRunning }, [isRunning])
+  useEffect(() => { initCO2() }, [initCO2])
+
+  // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2">
-        <Button
-          variant={mode === 'learning' ? 'default' : 'outline'}
-          onClick={() => setMode('learning')}
-          className="font-cairo flex-1"
-        >
-          وضع التعلم
-        </Button>
-        <Button
-          variant={mode === 'experiment' ? 'default' : 'outline'}
-          onClick={() => setMode('experiment')}
-          className="font-cairo flex-1"
-        >
-          وضع التجربة
-        </Button>
+    <div className="space-y-4" dir="rtl">
+
+      <div className="flex gap-2 justify-center flex-wrap">
+        <Button variant={mode === 'learning' ? 'default' : 'outline'} onClick={() => setMode('learning')} className="font-cairo">💡 التعلم</Button>
+        <Button variant={mode === 'experiment' ? 'default' : 'outline'} onClick={() => setMode('experiment')} className="font-cairo">🔬 التجربة</Button>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+
+        {/* Canvas + Chart */}
+        <div className="lg:col-span-2 space-y-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-base">🌿 التمثيل الضوئي — فوتونات + ورق إيلوديا</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-xl overflow-hidden border-2 border-green-200">
+                <canvas ref={canvasRef} width={CW} height={CH} className="w-full block" />
+              </div>
+              <div className="flex gap-2 mt-3 justify-center">
+                <Button onClick={() => setIsRunning(r => !r)} className="gap-2 font-cairo">
+                  {isRunning ? <><Pause size={16} weight="fill" />إيقاف</> : <><Play size={16} weight="fill" />تشغيل</>}
+                </Button>
+                <Button onClick={reset} variant="outline" className="gap-2 font-cairo">
+                  <ArrowClockwise size={16} />إعادة ضبط
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm">📊 إنتاج الأكسجين عبر الزمن</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={150}>
+                <LineChart data={chart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="t" tick={{ fontSize: 10 }}
+                    label={{ value: 'الزمن (ث)', position: 'insideBottomRight', offset: -5, style: { fontFamily: 'Cairo', fontSize: 10 } }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ fontFamily: 'Cairo', direction: 'rtl', fontSize: 11 }} />
+                  <Line type="monotone" dataKey="o2" stroke="#22c55e" strokeWidth={2} dot={false} name="O₂ (وحدة)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Controls */}
+        <div className="space-y-3">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">⚙️ التحكم</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {([
+                { label: 'شدة الضوء', val: light, unit: '%', min: 0, max: 100, step: 10,
+                  fn: (v: number) => { setLight(v); lightRef.current = v } },
+                { label: 'تركيز CO₂', val: co2Conc, unit: '%', min: 0.5, max: 5, step: 0.5,
+                  fn: (v: number) => { setCo2Conc(v); concRef.current = v } },
+              ] as { label: string; val: number; unit: string; min: number; max: number; step: number; fn: (v: number) => void }[]).map(({ label, val, unit, min, max, step, fn }) => (
+                <div key={label}>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs font-cairo font-semibold">{label}</label>
+                    <Badge variant="secondary" className="font-cairo text-xs">{val}{unit}</Badge>
+                  </div>
+                  <Slider value={[val]} onValueChange={v => fn(v[0])} min={min} max={max} step={step} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">📈 القياسات</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {[
+                { label: 'O₂ المنتج', value: `${o2UI} وحدة` },
+                { label: 'معدل الإنتاج', value: `${rateUI} و/ث` },
+                { label: 'الزمن المنقضي', value: `${elapsed} ث` },
+                { label: 'شدة الضوء', value: `${light}%` },
+                { label: 'تركيز CO₂', value: `${co2Conc}%` },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center">
+                  <span className="text-xs font-cairo text-muted-foreground">{label}</span>
+                  <Badge variant="outline" className="font-cairo text-xs">{value}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">🎯 خطوات التجربة</CardTitle></CardHeader>
+            <CardContent>
+              <ol className="text-xs font-cairo space-y-1.5 text-muted-foreground">
+                <li className="flex gap-2"><span className="text-primary font-bold">١</span>اضبط شدة الضوء</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٢</span>شغّل وعدّ فقاعات O₂</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٣</span>سجّل معدل الإنتاج</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٤</span>غيّر تركيز CO₂ وقارن</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٥</span>ما العامل المحدِّد للمعدل؟</li>
+              </ol>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {mode === 'learning' && (
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader>
-            <CardTitle className="text-lg font-cairo flex items-center gap-2">
-              <Sun size={20} weight="fill" />
-              شرح التجربة
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="font-noto space-y-2 text-sm">
-            <p>• النبات المائي يمتص CO₂ من الماء ويستخدم الضوء</p>
-            <p>• ينتج الأكسجين الذي يظهر على شكل فقاعات</p>
-            <p>• زيادة شدة الضوء أو تركيز CO₂ يزيد معدل التمثيل الضوئي</p>
-            <p>• المعادلة: 6CO₂ + 6H₂O + ضوء → C₆H₁₂O₆ + 6O₂</p>
-          </CardContent>
-        </Card>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm text-green-700">🌱 المعادلة الكيميائية</CardTitle>
+            </CardHeader>
+            <CardContent className="font-cairo text-xs text-green-900 dark:text-green-200 space-y-2">
+              <div className="bg-white dark:bg-green-950 rounded p-2 border border-green-200 font-mono text-center text-sm font-bold">
+                6CO₂ + 6H₂O + ضوء → C₆H₁₂O₆ + 6O₂
+              </div>
+              <ul className="space-y-1">
+                <li>• الفوتونات (⬤ صفراء) تُطلق طاقة الضوء</li>
+                <li>• CO₂ (• حمراء) يُمتص من الماء</li>
+                <li>• كلاهما لازم لإنتاج O₂ (⬤ بيضاء)</li>
+                <li>• زيادة الضوء أو CO₂ → ↑ معدل التمثيل</li>
+              </ul>
+            </CardContent>
+          </Card>
+          <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm text-yellow-700">❓ أسئلة تحليلية</CardTitle>
+            </CardHeader>
+            <CardContent className="font-cairo text-xs text-yellow-900 dark:text-yellow-200 space-y-1.5">
+              <div>١. كيف تؤثر شدة الضوء على عدد الفقاعات؟</div>
+              <div>٢. ما دور CO₂ في عملية التمثيل الضوئي؟</div>
+              <div>٣. ما العامل المحدِّد (المقيِّد) للعملية؟</div>
+              <div>٤. ماذا يحدث عند خفض الضوء إلى 0؟</div>
+              <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded font-semibold">
+                الاستنتاج: ↑ ضوء و↑ CO₂ → ↑ إنتاج O₂ (حتى العامل المحدِّد).
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-cairo text-lg">لوحة التحكم</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="font-cairo text-sm font-medium flex items-center gap-2">
-                  <Sun size={16} />
-                  شدة الضوء
-                </label>
-                <Badge variant="secondary" className="font-cairo">
-                  {lightIntensity}%
-                </Badge>
-              </div>
-              <Slider
-                value={[lightIntensity]}
-                onValueChange={(v) => {
-                  if (!isRunning) setLightIntensity(v[0])
-                }}
-                min={0}
-                max={100}
-                step={10}
-                disabled={isRunning}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground font-cairo">
-                <span>مظلم</span>
-                <span>متوسط</span>
-                <span>ساطع</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="font-cairo text-sm font-medium flex items-center gap-2">
-                  <Drop size={16} />
-                  تركيز CO₂
-                </label>
-                <Badge variant="secondary" className="font-cairo">
-                  {co2Concentration}%
-                </Badge>
-              </div>
-              <Slider
-                value={[co2Concentration]}
-                onValueChange={(v) => {
-                  if (!isRunning) setCo2Concentration(v[0])
-                }}
-                min={0.5}
-                max={5}
-                step={0.5}
-                disabled={isRunning}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground font-cairo">
-                <span>0.5%</span>
-                <span>2.75%</span>
-                <span>5%</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setIsRunning(!isRunning)}
-                className="flex-1 font-cairo gap-2"
-              >
-                {isRunning ? (
-                  <>
-                    <Pause size={18} weight="fill" />
-                    إيقاف
-                  </>
-                ) : (
-                  <>
-                    <Play size={18} weight="fill" />
-                    تشغيل
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={reset}
-                variant="outline"
-                className="font-cairo gap-2"
-              >
-                <ArrowClockwise size={18} />
-                إعادة ضبط
-              </Button>
-            </div>
-
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <div className="flex justify-between font-cairo">
-                <span className="text-sm">الزمن المنقضي:</span>
-                <Badge>{time} ثانية</Badge>
-              </div>
-              <div className="flex justify-between font-cairo">
-                <span className="text-sm">معدل الإنتاج:</span>
-                <Badge variant="default">
-                  {rate.toFixed(2)} فقاعة/ثانية
-                </Badge>
-              </div>
-              <div className="flex justify-between font-cairo">
-                <span className="text-sm">الأكسجين المنتج:</span>
-                <Badge variant="default" className="bg-green-600">
-                  {oxygenProduced.toFixed(1)} وحدة
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-cairo text-lg">منطقة المحاكاة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative w-full aspect-[3/4] border-2 border-border rounded-lg overflow-hidden bg-gradient-to-b from-blue-100/50 to-blue-200/50">
-              <svg width="100%" height="100%" viewBox="0 0 400 500">
-                <defs>
-                  <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#bfdbfe', stopOpacity: 0.3 }} />
-                    <stop offset="100%" style={{ stopColor: '#93c5fd', stopOpacity: 0.5 }} />
-                  </linearGradient>
-                </defs>
-
-                <rect
-                  x="0"
-                  y="0"
-                  width="400"
-                  height="500"
-                  fill="url(#waterGradient)"
-                />
-
-                <ellipse
-                  cx="200"
-                  cy="500"
-                  rx="60"
-                  ry="20"
-                  fill="#65a30d"
-                />
-                
-                <motion.g
-                  animate={{
-                    y: [0, -5, 0]
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                >
-                  <path
-                    d="M 150 450 Q 180 350, 200 280 T 250 120"
-                    fill="none"
-                    stroke="#84cc16"
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                  />
-                  
-                  <ellipse cx="160" cy="400" rx="15" ry="25" fill="#65a30d" opacity="0.8" />
-                  <ellipse cx="190" cy="330" rx="18" ry="30" fill="#65a30d" opacity="0.8" />
-                  <ellipse cx="210" cy="250" rx="20" ry="35" fill="#84cc16" opacity="0.9" />
-                  <ellipse cx="230" cy="180" rx="18" ry="30" fill="#84cc16" opacity="0.9" />
-                  <ellipse cx="245" cy="130" rx="15" ry="25" fill="#a3e635" opacity="0.9" />
-                </motion.g>
-
-                {lightIntensity > 0 && (
-                  <>
-                    <motion.line
-                      x1={100 + Math.random() * 20}
-                      y1="-10"
-                      x2={150 + Math.random() * 20}
-                      y2="100"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                      opacity={lightIntensity / 200}
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                    <motion.line
-                      x1={200 + Math.random() * 20}
-                      y1="-10"
-                      x2={200 + Math.random() * 20}
-                      y2="120"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                      opacity={lightIntensity / 200}
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 1, repeat: Infinity, delay: 0.3 }}
-                    />
-                    <motion.line
-                      x1={280 + Math.random() * 20}
-                      y1="-10"
-                      x2={250 + Math.random() * 20}
-                      y2="100"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                      opacity={lightIntensity / 200}
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 1, repeat: Infinity, delay: 0.6 }}
-                    />
-                  </>
-                )}
-
-                <AnimatePresence>
-                  {bubbles.map((bubble) => (
-                    <motion.circle
-                      key={bubble.id}
-                      cx={bubble.x}
-                      cy={bubble.y}
-                      r="6"
-                      fill="white"
-                      stroke="#3b82f6"
-                      strokeWidth="1"
-                      opacity="0.8"
-                      initial={{ y: 280, opacity: 0.8, scale: 0.5 }}
-                      animate={{ y: -20, opacity: 0, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 3, ease: 'linear' }}
-                    />
-                  ))}
-                </AnimatePresence>
-
-                <text
-                  x="200"
-                  y="30"
-                  textAnchor="middle"
-                  className="font-cairo text-sm font-bold"
-                  fill="currentColor"
-                >
-                  O₂ ↑
-                </text>
-
-                <text
-                  x="200"
-                  y="480"
-                  textAnchor="middle"
-                  className="font-cairo text-xs"
-                  fill="currentColor"
-                >
-                  نبات مائي (إيلوديا)
-                </text>
-              </svg>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-cairo text-lg">الملاحظات والاستنتاجات</CardTitle>
-        </CardHeader>
-        <CardContent className="font-noto space-y-3 text-sm">
-          <div className="grid gap-2">
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-bold">•</span>
-              <p>المتغير المستقل: شدة الضوء ({lightIntensity}%) أو تركيز CO₂ ({co2Concentration}%)</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-bold">•</span>
-              <p>المتغير التابع: معدل إنتاج الأكسجين (عدد الفقاعات/الزمن)</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-bold">•</span>
-              <p>المتغيرات الثابتة: نوع النبات، درجة الحرارة، حجم الماء</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-bold">•</span>
-              <p className="font-bold text-primary">
-                النتيجة: زيادة شدة الضوء أو تركيز CO₂ يزيد معدل التمثيل الضوئي (إنتاج الأكسجين)
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
