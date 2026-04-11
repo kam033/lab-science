@@ -1,217 +1,257 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Card } from '@/components/ui/card'
-import { Play, Pause, ArrowCounterClockwise } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Play, Pause, ArrowClockwise, ArrowSquareOut } from '@phosphor-icons/react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+
+const CW = 560, CH = 320
+const G = 9.8, SCALE = 55
+
+interface DataPoint { t: number; v: number; s: number }
 
 export function AccelerationSim() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>()
+  const simRef = useRef({ isRunning: false, time: 0, vel: 0, pos: 0, lastData: 0 })
+  const angleRef = useRef(30)
+  const frictionRef = useRef(0)
+  const massRef = useRef(1)
+
+  const [mode, setMode] = useState<'learning' | 'experiment'>('learning')
   const [isRunning, setIsRunning] = useState(false)
   const [angle, setAngle] = useState(30)
-  const [position, setPosition] = useState(0)
-  const [velocity, setVelocity] = useState(0)
-  const [time, setTime] = useState(0)
-  const [data, setData] = useState<{ t: number; s: number; v: number }[]>([])
-  const animationRef = useRef<number>()
-  const lastTimeRef = useRef<number>(0)
+  const [friction, setFriction] = useState(0)
+  const [mass, setMass] = useState(1)
+  const [liveV, setLiveV] = useState(0)
+  const [data, setData] = useState<DataPoint[]>([])
 
-  const g = 9.8
-  const acceleration = g * Math.sin((angle * Math.PI) / 180)
+  const getAccel = useCallback(() => {
+    const rad = angleRef.current * Math.PI / 180
+    return Math.max(0, G * (Math.sin(rad) - frictionRef.current * Math.cos(rad)))
+  }, [])
 
-  useEffect(() => {
-    if (isRunning && position < 500) {
-      const animate = (currentTime: number) => {
-        if (lastTimeRef.current === 0) {
-          lastTimeRef.current = currentTime
-        }
-        
-        const deltaTime = (currentTime - lastTimeRef.current) / 1000
-        lastTimeRef.current = currentTime
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const sim = simRef.current
+    const aRad = angleRef.current * Math.PI / 180
+    const accel = getAccel()
 
-        setTime((t) => {
-          const newTime = t + deltaTime
-          return newTime
-        })
-        
-        setVelocity((v) => {
-          const newVelocity = v + acceleration * deltaTime * 50
-          return newVelocity
-        })
-        
-        setPosition((p) => {
-          const currentVel = velocity + acceleration * deltaTime * 50
-          const newPosition = Math.min(p + currentVel * deltaTime, 500)
-          return newPosition
-        })
-        
-        if (time % 0.5 < deltaTime && time > 0) {
-          setData((d) => [
-            ...d,
-            { t: time, s: position, v: velocity / 50 }
-          ])
-        }
-
-        if (position < 500) {
-          animationRef.current = requestAnimationFrame(animate)
-        }
+    if (sim.isRunning) {
+      const dt = 1 / 60
+      sim.time += dt
+      sim.vel = Math.max(0, sim.vel + accel * dt)
+      sim.pos += sim.vel * dt
+      if (sim.time - sim.lastData >= 0.25) {
+        sim.lastData = sim.time
+        setData(p => [...p.slice(-40), { t: +sim.time.toFixed(2), v: +sim.vel.toFixed(2), s: +sim.pos.toFixed(2) }])
       }
-
-      animationRef.current = requestAnimationFrame(animate)
-    } else {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-      lastTimeRef.current = 0
+      setLiveV(+sim.vel.toFixed(2))
+      const maxPos = (CW * 0.68) / Math.cos(aRad) / SCALE
+      if (sim.pos >= maxPos) { sim.isRunning = false; setIsRunning(false) }
     }
 
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
+    ctx.fillStyle = '#f0f9ff'; ctx.fillRect(0, 0, CW, CH)
+    ctx.strokeStyle = 'rgba(148,163,184,0.18)'; ctx.lineWidth = 1
+    for (let x = 0; x < CW; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CH); ctx.stroke() }
+    for (let y = 0; y < CH; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke() }
+
+    const bX = 30, bY = CH - 30
+    const pLen = CW * 0.72
+    const tX = bX + pLen * Math.cos(aRad), tY = bY - pLen * Math.sin(aRad)
+    ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(tX, tY); ctx.lineTo(tX, bY); ctx.closePath()
+    ctx.fillStyle = '#dbeafe'; ctx.fill()
+    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.stroke()
+
+    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(CW - 10, bY); ctx.stroke()
+
+    ctx.beginPath(); ctx.arc(bX, bY, 45, -aRad, 0)
+    ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([])
+    ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 13px Cairo,Arial'; ctx.textAlign = 'center'
+    ctx.fillText(`${angleRef.current}°`, bX + 60, bY - 10)
+
+    const distPx = Math.min(sim.pos * SCALE, pLen - 32)
+    const bkX = bX + distPx * Math.cos(aRad), bkY = bY - distPx * Math.sin(aRad)
+    const bw = 38, bh = 30
+    ctx.save(); ctx.translate(bkX, bkY); ctx.rotate(-aRad)
+    ctx.fillStyle = '#1d4ed8'; ctx.strokeStyle = '#1e40af'; ctx.lineWidth = 2
+    ctx.beginPath(); ctx.roundRect(-bw / 2, -bh, bw, bh, 5); ctx.fill(); ctx.stroke()
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Cairo,Arial'; ctx.textAlign = 'center'
+    ctx.fillText(`${massRef.current}kg`, 0, -bh / 2 + 5)
+
+    if (sim.vel > 0.05) {
+      const aLen = Math.min(55, sim.vel * 12)
+      ctx.strokeStyle = '#10b981'; ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(bw / 2, -bh / 2); ctx.lineTo(bw / 2 + aLen, -bh / 2); ctx.stroke()
+      ctx.fillStyle = '#10b981'; ctx.beginPath()
+      ctx.moveTo(bw / 2 + aLen, -bh / 2)
+      ctx.lineTo(bw / 2 + aLen - 8, -bh / 2 - 5)
+      ctx.lineTo(bw / 2 + aLen - 8, -bh / 2 + 5)
+      ctx.fill()
     }
-  }, [isRunning, position, acceleration])
+    ctx.restore()
+
+    const rows = [
+      { l: 'الزمن', v: `${sim.time.toFixed(1)}s`, c: '#818cf8' },
+      { l: 'السرعة', v: `${sim.vel.toFixed(2)} m/s`, c: '#10b981' },
+      { l: 'التسارع', v: `${accel.toFixed(2)} m/s²`, c: '#f59e0b' },
+      { l: 'المسافة', v: `${sim.pos.toFixed(2)} m`, c: '#3b82f6' },
+    ]
+    rows.forEach((r, i) => {
+      ctx.fillStyle = 'rgba(15,23,42,0.78)'; ctx.beginPath(); ctx.roundRect(CW - 148, 10 + i * 28, 138, 22, 4); ctx.fill()
+      ctx.fillStyle = r.c; ctx.font = 'bold 11px Cairo,Arial'; ctx.textAlign = 'right'
+      ctx.fillText(`${r.l}: ${r.v}`, CW - 14, 25 + i * 28)
+    })
+
+    rafRef.current = requestAnimationFrame(draw)
+  }, [getAccel])
+
+  useEffect(() => { rafRef.current = requestAnimationFrame(draw); return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) } }, [draw])
+  useEffect(() => { simRef.current.isRunning = isRunning }, [isRunning])
 
   const reset = () => {
     setIsRunning(false)
-    setPosition(0)
-    setVelocity(0)
-    setTime(0)
-    setData([])
-    lastTimeRef.current = 0
+    simRef.current = { isRunning: false, time: 0, vel: 0, pos: 0, lastData: 0 }
+    setLiveV(0); setData([])
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="relative h-[400px] bg-white/80 rounded-lg border-2 border-primary/20 overflow-hidden">
-          <svg className="absolute inset-0 w-full h-full">
-            <defs>
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="gray" strokeWidth="0.5" opacity="0.2"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-            
-            <line
-              x1="50"
-              y1="350"
-              x2={50 + 500 * Math.cos((angle * Math.PI) / 180)}
-              y2={350 - 500 * Math.sin((angle * Math.PI) / 180)}
-              stroke="oklch(0.45 0.15 265)"
-              strokeWidth="8"
-              strokeLinecap="round"
-            />
-            
-            <g transform={`translate(${50 + position * Math.cos((angle * Math.PI) / 180)}, ${350 - position * Math.sin((angle * Math.PI) / 180)})`}>
-              <motion.rect
-                x="-20"
-                y="-15"
-                width="40"
-                height="30"
-                fill="oklch(0.65 0.22 50)"
-                stroke="oklch(0.45 0.15 265)"
-                strokeWidth="2"
-                rx="4"
-                animate={{
-                  scale: isRunning ? [1, 1.05, 1] : 1
-                }}
-                transition={{
-                  duration: 0.5,
-                  repeat: isRunning ? Infinity : 0
-                }}
-              />
-              <circle cx="0" cy="0" r="3" fill="white" />
-            </g>
-            
-            <text x="60" y="370" fontSize="14" fill="oklch(0.45 0.15 265)" fontWeight="600">
-              {angle.toFixed(0)}°
-            </text>
-          </svg>
-          
-          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-lg p-4 shadow-lg border">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-8">
-                <span className="text-muted-foreground">الزمن:</span>
-                <span className="font-bold font-mono">{time.toFixed(2)} s</span>
+    <div className="space-y-4" dir="rtl">
+      <div className="flex gap-2 justify-center flex-wrap">
+        <Button variant={mode === 'learning' ? 'default' : 'outline'} onClick={() => setMode('learning')} className="font-cairo">💡 التعلم</Button>
+        <Button variant={mode === 'experiment' ? 'default' : 'outline'} onClick={() => setMode('experiment')} className="font-cairo">🔬 التجربة</Button>
+        <Button variant="outline" className="gap-2 font-cairo border-orange-400 text-orange-600 hover:bg-orange-50"
+          onClick={() => window.open('https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html', '_blank')}>
+          <ArrowSquareOut size={16} /> PhET — Forces & Motion
+        </Button>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-3">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-base">⛰️ التسارع على المستوى المائل</CardTitle></CardHeader>
+            <CardContent>
+              <div className="rounded-xl overflow-hidden border-2 border-blue-200">
+                <canvas ref={canvasRef} width={CW} height={CH} className="w-full block" />
               </div>
-              <div className="flex justify-between gap-8">
-                <span className="text-muted-foreground">الإزاحة:</span>
-                <span className="font-bold font-mono">{(position / 10).toFixed(2)} m</span>
+              <div className="flex gap-2 mt-3 justify-center">
+                <Button onClick={() => setIsRunning(r => !r)} className="gap-2 font-cairo">
+                  {isRunning ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
+                  {isRunning ? 'إيقاف' : 'تشغيل'}
+                </Button>
+                <Button onClick={reset} variant="outline" className="gap-2 font-cairo"><ArrowClockwise size={16} /> إعادة ضبط</Button>
               </div>
-              <div className="flex justify-between gap-8">
-                <span className="text-muted-foreground">السرعة:</span>
-                <span className="font-bold font-mono">{(velocity / 50).toFixed(2)} m/s</span>
-              </div>
-              <div className="flex justify-between gap-8">
-                <span className="text-muted-foreground">التسارع:</span>
-                <span className="font-bold font-mono">{acceleration.toFixed(2)} m/s²</span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          {data.length >= 4 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">📊 السرعة والمسافة عبر الزمن</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={170}>
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" label={{ value: 'الزمن (s)', position: 'insideBottom', offset: -2, style: { fontFamily: 'Cairo' } }} tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip contentStyle={{ fontFamily: 'Cairo', direction: 'rtl', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontFamily: 'Cairo', fontSize: 12 }} />
+                    <Line type="monotone" dataKey="v" stroke="#10b981" strokeWidth={2} dot={false} name="السرعة m/s" />
+                    <Line type="monotone" dataKey="s" stroke="#3b82f6" strokeWidth={2} dot={false} name="المسافة m" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </Card>
 
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-semibold">زاوية الميل: {angle}°</label>
-            </div>
-            <Slider
-              value={[angle]}
-              onValueChange={(v) => !isRunning && setAngle(v[0])}
-              min={10}
-              max={80}
-              step={5}
-              disabled={isRunning}
-              className="w-full"
-            />
-          </div>
+        <div className="space-y-3">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">⚙️ التحكم</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {([
+                { label: 'زاوية الميل θ', val: angle, unit: '°', min: 5, max: 80, step: 1, setFn: (v: number) => { setAngle(v); angleRef.current = v; reset() } },
+                { label: 'الكتلة', val: mass, unit: ' kg', min: 0.5, max: 10, step: 0.5, setFn: (v: number) => { setMass(v); massRef.current = v } },
+                { label: 'معامل الاحتكاك μ', val: friction, unit: '', min: 0, max: 0.7, step: 0.05, setFn: (v: number) => { setFriction(v); frictionRef.current = v; reset() } },
+              ] as { label: string; val: number; unit: string; min: number; max: number; step: number; setFn: (v: number) => void }[]).map(({ label, val, unit, min, max, step, setFn }) => (
+                <div key={label}>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs font-cairo font-semibold">{label}</label>
+                    <Badge variant="secondary" className="font-cairo text-xs">{val}{unit}</Badge>
+                  </div>
+                  <Slider value={[val]} onValueChange={v => setFn(v[0])} min={min} max={max} step={step} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setIsRunning(!isRunning)}
-              disabled={position >= 500}
-              className="flex-1 gap-2"
-            >
-              {isRunning ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
-              {isRunning ? 'إيقاف' : 'تشغيل'}
-            </Button>
-            <Button onClick={reset} variant="outline" className="gap-2">
-              <ArrowCounterClockwise size={20} />
-              إعادة ضبط
-            </Button>
-          </div>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">📈 القياسات</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {[
+                { label: 'التسارع النظري', value: `${getAccel().toFixed(3)} m/s²`, hi: true },
+                { label: 'السرعة الحالية', value: `${liveV} m/s` },
+                { label: 'g sinθ', value: `${(G * Math.sin(angle * Math.PI / 180)).toFixed(3)}` },
+                { label: 'μ g cosθ', value: `${(friction * G * Math.cos(angle * Math.PI / 180)).toFixed(3)}` },
+              ].map(({ label, value, hi }) => (
+                <div key={label} className="flex justify-between items-center">
+                  <span className="text-xs font-cairo text-muted-foreground">{label}</span>
+                  <Badge variant={hi ? 'default' : 'outline'} className="font-cairo text-xs">{value}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">🎯 خطوات التجربة</CardTitle></CardHeader>
+            <CardContent>
+              <ol className="text-xs font-cairo space-y-1.5 text-muted-foreground">
+                <li className="flex gap-2"><span className="text-primary font-bold">١</span> اضبط زاوية الميل</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٢</span> شغّل وراقب الحركة</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٣</span> غيّر الكتلة: هل يتغير a؟</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٤</span> أضف احتكاكاً وقارن</li>
+                <li className="flex gap-2"><span className="text-primary font-bold">٥</span> تحقق من a = g(sinθ−μcosθ)</li>
+              </ol>
+            </CardContent>
+          </Card>
         </div>
-      </Card>
+      </div>
 
-      {data.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-lg font-bold mb-4">البيانات المسجلة</h3>
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div className="font-bold text-center p-2 bg-primary/10 rounded">الزمن (s)</div>
-            <div className="font-bold text-center p-2 bg-primary/10 rounded">الإزاحة (m)</div>
-            <div className="font-bold text-center p-2 bg-primary/10 rounded">السرعة (m/s)</div>
-            {data.slice(-8).map((d, i) => (
-              <>
-                <div key={`t-${i}`} className="text-center p-2 border-b font-mono">{d.t.toFixed(2)}</div>
-                <div key={`s-${i}`} className="text-center p-2 border-b font-mono">{(d.s / 10).toFixed(2)}</div>
-                <div key={`v-${i}`} className="text-center p-2 border-b font-mono">{d.v.toFixed(2)}</div>
-              </>
-            ))}
-          </div>
-        </Card>
+      {mode === 'learning' && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card className="border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20">
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm text-indigo-700">📐 المعادلات</CardTitle></CardHeader>
+            <CardContent className="space-y-2 font-cairo text-xs">
+              <div className="bg-white dark:bg-indigo-950 rounded p-2 border border-indigo-200 font-mono text-center">
+                <div className="text-lg font-bold text-indigo-700">a = g(sinθ − μcosθ)</div>
+                <div className="text-muted-foreground mt-1">v = at &nbsp;|&nbsp; s = ½at²</div>
+              </div>
+              <ul className="space-y-1 text-indigo-900 dark:text-indigo-200">
+                <li>• <strong>mg sinθ</strong>: مركبة الوزن على المستوى</li>
+                <li>• <strong>μN</strong>: قوة الاحتكاك</li>
+                <li>• الكتلة لا تؤثر على التسارع</li>
+              </ul>
+            </CardContent>
+          </Card>
+          <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+            <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm text-green-700">❓ أسئلة تحليلية</CardTitle></CardHeader>
+            <CardContent className="space-y-1.5 text-xs font-cairo text-green-900 dark:text-green-200">
+              <div>١. ما تأثير زيادة الزاوية على التسارع؟</div>
+              <div>٢. لماذا الكتلة لا تؤثر على التسارع؟</div>
+              <div>٣. عند أي زاوية يتوازن الاحتكاك مع الانزلاق؟</div>
+              <div>٤. ارسم علاقة a بـ sinθ</div>
+              <div>٥. ما تأثير الاحتكاك على المسافة المقطوعة؟</div>
+              <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded font-semibold">
+                الاستنتاج: التسارع يزداد بزيادة الزاوية ويستقل عن الكتلة.
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
-
-      <Card className="p-6 bg-primary/5">
-        <h3 className="text-lg font-bold mb-2">الشرح العلمي</h3>
-        <div className="space-y-2 text-sm">
-          <p><strong>التسارع:</strong> يتسارع الجسم على المستوى المائل بتسارع يساوي a = g sin(θ)</p>
-          <p><strong>المتغير المستقل:</strong> زاوية ميل المستوى</p>
-          <p><strong>المتغير التابع:</strong> التسارع والسرعة والإزاحة</p>
-          <p><strong>المتغيرات الثابتة:</strong> كتلة الجسم، عجلة الجاذبية، سطح المستوى</p>
-        </div>
-      </Card>
     </div>
   )
 }
