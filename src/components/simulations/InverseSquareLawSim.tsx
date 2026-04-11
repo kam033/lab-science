@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Play, Pause, ArrowClockwise, ArrowSquareOut } from '@phosphor-icons/react'
+import { Play, Pause, ArrowClockwise, ArrowsOut } from '@phosphor-icons/react'
+
+const PHET_URL = 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
@@ -40,7 +42,9 @@ export function InverseSquareLawSim() {
   const detectorRef = useRef(200)   // detector x position in px from source
   const powerRef = useRef(100)
 
-  const [mode, setMode] = useState<'learning' | 'experiment'>('learning')
+  const [mode, setMode]   = useState<'learning' | 'experiment'>('learning')
+  const [simTab, setSimTab] = useState<'custom' | 'phet'>('custom')
+  const [phetFull, setPhetFull] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [detectorDist, setDetectorDist] = useState(200)   // px
   const [sourcePower, setSourcePower] = useState(100)
@@ -265,7 +269,7 @@ export function InverseSquareLawSim() {
   return (
     <div className="space-y-4" dir="rtl">
 
-      {/* Mode toggle */}
+      {/* Mode + sim tab toggles */}
       <div className="flex gap-2 justify-center flex-wrap">
         <Button variant={mode === 'learning' ? 'default' : 'outline'} onClick={() => setMode('learning')} className="font-cairo">
           💡 وضع التعلم
@@ -273,16 +277,53 @@ export function InverseSquareLawSim() {
         <Button variant={mode === 'experiment' ? 'default' : 'outline'} onClick={() => setMode('experiment')} className="font-cairo">
           🔬 وضع التجربة
         </Button>
-        <Button
-          variant="outline"
-          className="gap-2 font-cairo border-orange-400 text-orange-600 hover:bg-orange-50"
-          onClick={() => window.open('https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', '_blank')}
-        >
-          <ArrowSquareOut size={16} />
-          محاكاة PhET — الأمواج الصوتية
-        </Button>
+        <div className="flex rounded-lg overflow-hidden border border-orange-300">
+          <Button
+            variant={simTab === 'custom' ? 'default' : 'ghost'}
+            onClick={() => setSimTab('custom')}
+            className="font-cairo rounded-none text-sm px-3 h-9"
+          >
+            🌊 محاكاة مخصصة
+          </Button>
+          <Button
+            variant={simTab === 'phet' ? 'default' : 'ghost'}
+            onClick={() => setSimTab('phet')}
+            className="font-cairo rounded-none text-sm px-3 h-9 border-r border-orange-300"
+          >
+            ⚛️ PhET مباشر
+          </Button>
+        </div>
       </div>
 
+      {/* ── PhET embedded iframe ────────────────────────────────────────────── */}
+      {simTab === 'phet' && (
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 flex-row items-center justify-between">
+            <CardTitle className="font-cairo text-base">
+              ⚛️ Sound Waves — PhET Interactive
+            </CardTitle>
+            <Button size="sm" variant="outline" className="gap-1.5 font-cairo text-xs"
+              onClick={() => setPhetFull(f => !f)}>
+              <ArrowsOut size={14} />
+              {phetFull ? 'تصغير' : 'تكبير'}
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className={`w-full transition-all duration-300 ${phetFull ? 'h-[85vh]' : 'h-[560px]'}`}>
+              <iframe
+                src={PHET_URL}
+                title="Sound Waves — PhET Interactive Simulations"
+                className="w-full h-full border-0"
+                allow="fullscreen"
+                loading="lazy"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Custom simulation ───────────────────────────────────────────────── */}
+      {simTab === 'custom' && (
       <div className="grid lg:grid-cols-3 gap-4">
 
         {/* ── Canvas ── */}
@@ -441,6 +482,8 @@ export function InverseSquareLawSim() {
           </Card>
         </div>
       </div>
+
+      )} {/* end simTab === 'custom' */}
 
       {/* Learning mode */}
       {mode === 'learning' && (
