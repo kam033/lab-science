@@ -1,357 +1,514 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { Play, Pause, ArrowClockwise, ArrowSquareOut } from '@phosphor-icons/react'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface WaveRing {
+  r: number       // current radius (px)
+  born: number    // time created (s)
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CW = 560
+const CH = 340
+const SRC_X = 60         // source x position
+const SRC_Y = CH / 2
+const WAVE_SPEED = 70    // px/s
+const WAVE_INTERVAL = 0.4 // seconds between new rings
+const MAX_R = CW - SRC_X + 20
+
+// ─── Physics ──────────────────────────────────────────────────────────────────
+function intensity(power: number, distPx: number): number {
+  const distM = distPx / 100   // 100px = 1m
+  if (distM <= 0) return Infinity
+  return power / (4 * Math.PI * distM * distM)
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function InverseSquareLawSim() {
-  const [isRunning, setIsRunning] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>()
+  const ringsRef = useRef<WaveRing[]>([])
+  const simRef = useRef({ time: 0, lastRing: 0, isRunning: false })
+  const detectorRef = useRef(200)   // detector x position in px from source
+  const powerRef = useRef(100)
+
   const [mode, setMode] = useState<'learning' | 'experiment'>('learning')
-  const [distance, setDistance] = useState(10)
+  const [isRunning, setIsRunning] = useState(false)
+  const [detectorDist, setDetectorDist] = useState(200)   // px
   const [sourcePower, setSourcePower] = useState(100)
-  const [measurements, setMeasurements] = useState<Array<{ distance: number; intensity: number; theoretical: number }>>([])
+  const [currentI, setCurrentI] = useState(0)
+  const [measurements, setMeasurements] = useState<{ d: number; I: number; inv_d2: number }[]>([])
 
-  const calculateIntensity = (dist: number, power: number): number => {
-    return power / (dist * dist)
-  }
+  // ── Animation loop ──────────────────────────────────────────────────────────
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-  const currentIntensity = calculateIntensity(distance, sourcePower)
-  const theoretical = calculateIntensity(distance, sourcePower)
+    const sim = simRef.current
+    const detX = SRC_X + detectorRef.current
 
-  const addMeasurement = () => {
-    const newMeasurement = {
-      distance,
-      intensity: currentIntensity * (0.95 + Math.random() * 0.1),
-      theoretical
+    if (sim.isRunning) {
+      sim.time += 1 / 60
+
+      // Spawn new ring
+      if (sim.time - sim.lastRing >= WAVE_INTERVAL) {
+        sim.lastRing = sim.time
+        ringsRef.current.push({ r: 0, born: sim.time })
+      }
+
+      // Expand rings
+      ringsRef.current = ringsRef.current
+        .map(w => ({ ...w, r: w.r + WAVE_SPEED / 60 }))
+        .filter(w => w.r < MAX_R)
     }
 
+    // ── Draw ───────────────────────────────────────────────────────────────
+    // Background (dark space)
+    ctx.fillStyle = '#0f172a'
+    ctx.fillRect(0, 0, CW, CH)
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(148,163,184,0.1)'
+    ctx.lineWidth = 1
+    for (let x = 0; x < CW; x += 50) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CH); ctx.stroke()
+    }
+    for (let y = 0; y < CH; y += 50) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke()
+    }
+
+    // Draw wave rings
+    ringsRef.current.forEach(w => {
+      if (w.r <= 0) return
+      const alpha = Math.max(0, 1 - (w.r / MAX_R))  // fade with distance
+      const ampFactor = Math.pow(SRC_X / (SRC_X + w.r), 2) // I ∝ 1/r²
+      const brightness = Math.round(ampFactor * 255)
+
+      ctx.beginPath()
+      ctx.arc(SRC_X, SRC_Y, w.r, -Math.PI / 2, Math.PI / 2)  // right half only
+      ctx.strokeStyle = `rgba(${brightness}, ${Math.round(brightness * 0.8)}, 50, ${alpha * 0.85})`
+      ctx.lineWidth = Math.max(0.5, 2 * ampFactor)
+      ctx.stroke()
+    })
+
+    // Source glow
+    const gradient = ctx.createRadialGradient(SRC_X, SRC_Y, 0, SRC_X, SRC_Y, 30)
+    gradient.addColorStop(0, 'rgba(251,191,36,0.9)')
+    gradient.addColorStop(0.4, 'rgba(251,191,36,0.4)')
+    gradient.addColorStop(1, 'rgba(251,191,36,0)')
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(SRC_X, SRC_Y, 30, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Source core
+    ctx.beginPath()
+    ctx.arc(SRC_X, SRC_Y, 10, 0, Math.PI * 2)
+    ctx.fillStyle = '#fbbf24'
+    ctx.fill()
+    ctx.strokeStyle = '#f59e0b'
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // Source label
+    ctx.fillStyle = '#fde68a'
+    ctx.font = 'bold 11px Cairo, Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('مصدر', SRC_X, SRC_Y + 28)
+
+    // Distance axis
+    ctx.strokeStyle = 'rgba(148,163,184,0.4)'
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.moveTo(SRC_X, SRC_Y)
+    ctx.lineTo(CW - 10, SRC_Y)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    // Ruler ticks
+    ctx.fillStyle = '#94a3b8'
+    ctx.font = '10px Arial'
+    ctx.textAlign = 'center'
+    for (let d = 50; d <= 450; d += 50) {
+      const x = SRC_X + d
+      if (x >= CW) break
+      ctx.beginPath()
+      ctx.moveTo(x, SRC_Y - 5)
+      ctx.lineTo(x, SRC_Y + 5)
+      ctx.strokeStyle = 'rgba(148,163,184,0.5)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+      ctx.fillText(`${d / 100}m`, x, SRC_Y + 16)
+    }
+
+    // Detector position
+    const dX = SRC_X + detectorRef.current
+    // Detector beam
+    ctx.strokeStyle = 'rgba(99,102,241,0.5)'
+    ctx.lineWidth = 1
+    ctx.setLineDash([3, 3])
+    ctx.beginPath()
+    ctx.moveTo(dX, 10)
+    ctx.lineTo(dX, CH - 10)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    // Detector box
+    const dw = 22, dh = 44
+    const dr = 6
+    ctx.fillStyle = '#1e40af'
+    ctx.strokeStyle = '#60a5fa'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.roundRect(dX - dw / 2, SRC_Y - dh / 2, dw, dh, dr)
+    ctx.fill()
+    ctx.stroke()
+
+    // Detector screen
+    const screenColor = () => {
+      const I = intensity(powerRef.current, detectorRef.current)
+      const maxI = intensity(powerRef.current, 50)
+      const ratio = Math.min(1, I / maxI)
+      const r = Math.round(ratio * 251)
+      const g = Math.round(ratio * 191)
+      return `rgb(${r},${g},36)`
+    }
+    ctx.fillStyle = screenColor()
+    ctx.fillRect(dX - 8, SRC_Y - 14, 16, 28)
+
+    ctx.fillStyle = '#bfdbfe'
+    ctx.font = 'bold 9px Cairo, Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('مستشعر', dX, SRC_Y + dh / 2 + 14)
+
+    // Distance label
+    ctx.fillStyle = '#a78bfa'
+    ctx.font = 'bold 12px Cairo, Arial'
+    ctx.fillText(`d = ${(detectorRef.current / 100).toFixed(1)} m`, (SRC_X + dX) / 2, SRC_Y - 18)
+
+    // Intensity readout top-right
+    const I = intensity(powerRef.current, detectorRef.current)
+    ctx.fillStyle = 'rgba(15,23,42,0.85)'
+    ctx.beginPath()
+    ctx.roundRect(CW - 170, 10, 160, 65, 8)
+    ctx.fill()
+    ctx.strokeStyle = '#6366f1'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    ctx.fillStyle = '#a78bfa'
+    ctx.font = 'bold 11px Cairo, Arial'
+    ctx.textAlign = 'right'
+    ctx.fillText('الشدة الحالية:', CW - 15, 32)
+    ctx.fillStyle = '#fbbf24'
+    ctx.font = 'bold 14px Arial'
+    ctx.fillText(`${I.toFixed(3)} W/m²`, CW - 15, 52)
+    ctx.fillStyle = '#94a3b8'
+    ctx.font = '10px Arial'
+    ctx.fillText(`I = P / (4π d²)`, CW - 15, 68)
+
+    // Update React intensity display
+    setCurrentI(Math.round(I * 1000) / 1000)
+
+    rafRef.current = requestAnimationFrame(draw)
+  }, [])
+
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(draw)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [draw])
+
+  useEffect(() => { simRef.current.isRunning = isRunning }, [isRunning])
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleDistanceChange = (v: number[]) => {
+    setDetectorDist(v[0])
+    detectorRef.current = v[0]
+  }
+
+  const handlePowerChange = (v: number[]) => {
+    setSourcePower(v[0])
+    powerRef.current = v[0]
+  }
+
+  const recordMeasurement = () => {
+    const d = detectorRef.current / 100
+    const I = intensity(powerRef.current, detectorRef.current)
     setMeasurements(prev => {
-      const exists = prev.find(m => m.distance === distance)
-      if (exists) {
-        return prev.map(m => m.distance === distance ? newMeasurement : m).sort((a, b) => a.distance - b.distance)
-      }
-      return [...prev, newMeasurement].sort((a, b) => a.distance - b.distance)
+      const existing = prev.find(m => Math.abs(m.d - d) < 0.05)
+      const entry = { d: Math.round(d * 100) / 100, I: Math.round(I * 1000) / 1000, inv_d2: Math.round((1 / (d * d)) * 100) / 100 }
+      if (existing) return prev.map(m => Math.abs(m.d - d) < 0.05 ? entry : m).sort((a, b) => a.d - b.d)
+      return [...prev, entry].sort((a, b) => a.d - b.d)
     })
   }
 
   const reset = () => {
     setIsRunning(false)
-    setDistance(10)
+    simRef.current = { time: 0, lastRing: 0, isRunning: false }
+    ringsRef.current = []
     setMeasurements([])
+    setDetectorDist(200)
+    detectorRef.current = 200
   }
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined
-
-    if (isRunning) {
-      interval = setInterval(() => {
-        setDistance(prev => {
-          const newDist = prev + 2
-          if (newDist > 50) {
-            setIsRunning(false)
-            return prev
-          }
-
-          const intensity = calculateIntensity(newDist, sourcePower)
-          setMeasurements(current => [
-            ...current,
-            {
-              distance: newDist,
-              intensity: intensity * (0.95 + Math.random() * 0.1),
-              theoretical: intensity
-            }
-          ])
-
-          return newDist
-        })
-      }, 500)
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [isRunning, sourcePower])
-
-  const waveRadius = (distance / 50) * 120
-
+  // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2 justify-center">
-        <Button
-          variant={mode === 'learning' ? 'default' : 'outline'}
-          onClick={() => setMode('learning')}
-          className="font-cairo"
-        >
-          وضع التعلم
+    <div className="space-y-4" dir="rtl">
+
+      {/* Mode toggle */}
+      <div className="flex gap-2 justify-center flex-wrap">
+        <Button variant={mode === 'learning' ? 'default' : 'outline'} onClick={() => setMode('learning')} className="font-cairo">
+          💡 وضع التعلم
+        </Button>
+        <Button variant={mode === 'experiment' ? 'default' : 'outline'} onClick={() => setMode('experiment')} className="font-cairo">
+          🔬 وضع التجربة
         </Button>
         <Button
-          variant={mode === 'experiment' ? 'default' : 'outline'}
-          onClick={() => setMode('experiment')}
-          className="font-cairo"
+          variant="outline"
+          className="gap-2 font-cairo border-orange-400 text-orange-600 hover:bg-orange-50"
+          onClick={() => window.open('https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', '_blank')}
         >
-          وضع التجربة
+          <ArrowSquareOut size={16} />
+          محاكاة PhET — الأمواج الصوتية
         </Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-4">
+      <div className="grid lg:grid-cols-3 gap-4">
+
+        {/* ── Canvas ── */}
+        <div className="lg:col-span-2 space-y-3">
           <Card>
-            <CardHeader>
-              <CardTitle className="font-cairo text-lg">منطقة المحاكاة</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-base">
+                🌊 انتشار الموجات من مصدر نقطي — قانون التربيع العكسي
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-lg p-6" style={{ height: '320px' }}>
-                <svg width="100%" height="100%" viewBox="0 0 400 300" className="mx-auto">
-                  <defs>
-                    <radialGradient id="lightGradient">
-                      <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
-                      <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.5" />
-                      <stop offset="100%" stopColor="#d97706" stopOpacity="0.1" />
-                    </radialGradient>
-                  </defs>
-
-                  {[1, 2, 3].map(i => (
-                    <circle
-                      key={i}
-                      cx="50"
-                      cy="150"
-                      r={waveRadius * i * 0.4}
-                      fill="none"
-                      stroke="#fbbf24"
-                      strokeWidth="1"
-                      opacity={0.3 / i}
-                      className="animate-pulse"
-                      style={{ animationDuration: `${2 * i}s` }}
-                    />
-                  ))}
-
-                  <circle cx="50" cy="150" r="15" fill="url(#lightGradient)" />
-                  <text x="50" y="155" textAnchor="middle" className="text-xs font-cairo fill-white font-bold">💡</text>
-
-                  <line x1="50" y1="150" x2={50 + distance * 5} y2="150" stroke="#64748b" strokeWidth="2" strokeDasharray="5,5" />
-
-                  <rect
-                    x={50 + distance * 5 - 10}
-                    y="130"
-                    width="20"
-                    height="40"
-                    fill="#3b82f6"
-                    stroke="#1e40af"
-                    strokeWidth="2"
-                    rx="4"
-                  />
-                  <text x={50 + distance * 5} y="115" textAnchor="middle" className="text-xs font-cairo fill-blue-600">مستشعر</text>
-
-                  <text x={50 + distance * 2.5} y="180" textAnchor="middle" className="text-sm font-cairo fill-gray-700 font-bold">
-                    {distance} cm
-                  </text>
-
-                  <g transform={`translate(${50 + distance * 5}, 150)`}>
-                    {Array.from({ length: Math.min(10, Math.floor(currentIntensity / 2)) }).map((_, i) => (
-                      <line
-                        key={i}
-                        x1="0"
-                        y1={-15 + i * 3}
-                        x2="30"
-                        y2={-15 + i * 3}
-                        stroke="#fbbf24"
-                        strokeWidth="1"
-                        opacity="0.6"
-                      />
-                    ))}
-                  </g>
-                </svg>
-
-                <div className="absolute bottom-4 left-4 bg-white/90 p-2 rounded-lg shadow text-xs font-cairo">
-                  <div className="font-semibold text-amber-600">شدة الضوء: {currentIntensity.toFixed(2)} W/m²</div>
-                </div>
+              <div className="rounded-xl overflow-hidden border-2 border-slate-700 shadow-inner">
+                <canvas ref={canvasRef} width={CW} height={CH} className="w-full block" />
               </div>
-
-              <div className="flex gap-2 mt-4 justify-center">
-                <Button
-                  onClick={() => setIsRunning(!isRunning)}
-                  disabled={distance >= 50}
-                  className="gap-2 font-cairo"
-                >
-                  {isRunning ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
-                  {isRunning ? 'إيقاف' : 'تشغيل تلقائي'}
+              <div className="flex gap-2 mt-3 justify-center">
+                <Button onClick={() => setIsRunning(r => !r)} className="gap-2 font-cairo">
+                  {isRunning ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
+                  {isRunning ? 'إيقاف' : 'تشغيل الأمواج'}
                 </Button>
-                <Button
-                  onClick={addMeasurement}
-                  disabled={isRunning}
-                  variant="outline"
-                  className="gap-2 font-cairo"
-                >
-                  تسجيل قياس
+                <Button onClick={recordMeasurement} variant="outline" className="font-cairo">
+                  📌 تسجيل قياس
                 </Button>
-                <Button
-                  onClick={reset}
-                  variant="outline"
-                  className="gap-2 font-cairo"
-                >
-                  <ArrowClockwise size={18} />
+                <Button onClick={reset} variant="outline" className="gap-2 font-cairo">
+                  <ArrowClockwise size={16} />
                   إعادة ضبط
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {measurements.length > 0 && (
+          {/* Graph */}
+          {measurements.length >= 2 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="font-cairo text-lg">الرسم البياني</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-cairo text-sm">📊 الشدة مقابل المسافة — I ∝ 1/d²</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
+                <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={measurements}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="distance" 
-                      label={{ value: 'المسافة (cm)', position: 'insideBottom', offset: -5, style: { fontFamily: 'Cairo' } }}
-                    />
-                    <YAxis 
-                      label={{ value: 'الشدة (W/m²)', angle: -90, position: 'insideLeft', style: { fontFamily: 'Cairo' } }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ fontFamily: 'Cairo', direction: 'rtl' }}
-                      formatter={(value: number) => value.toFixed(2)}
-                    />
-                    <Legend wrapperStyle={{ fontFamily: 'Cairo' }} />
-                    <Line type="monotone" dataKey="theoretical" stroke="#8b5cf6" strokeWidth={2} name="القيمة النظرية" strokeDasharray="5 5" />
-                    <Line type="monotone" dataKey="intensity" stroke="#3b82f6" strokeWidth={2} name="القراءة المُقاسة" dot={{ r: 4 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="d" label={{ value: 'المسافة d (m)', position: 'insideBottom', offset: -2, style: { fontFamily: 'Cairo' } }} tick={{ fontFamily: 'Cairo', fontSize: 11 }} />
+                    <YAxis label={{ value: 'I (W/m²)', angle: -90, position: 'insideLeft', style: { fontFamily: 'Cairo' } }} tick={{ fontFamily: 'Cairo', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ fontFamily: 'Cairo', direction: 'rtl', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontFamily: 'Cairo', fontSize: 12 }} />
+                    <Line type="monotone" dataKey="I" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 5 }} name="الشدة I" />
                   </LineChart>
                 </ResponsiveContainer>
+                {measurements.length >= 3 && (
+                  <div className="mt-2 text-center text-xs text-muted-foreground font-cairo">
+                    عند مضاعفة المسافة → الشدة تصبح ¼ القيمة الأصلية ✓
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Measurements table */}
+          {measurements.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-cairo text-sm">📋 جدول القياسات</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs font-cairo text-center">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="p-2 border">المسافة d (m)</th>
+                        <th className="p-2 border">الشدة I (W/m²)</th>
+                        <th className="p-2 border">1/d²</th>
+                        <th className="p-2 border">I × d²</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {measurements.map((m, i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                          <td className="p-2 border">{m.d}</td>
+                          <td className="p-2 border font-bold text-indigo-600">{m.I}</td>
+                          <td className="p-2 border">{m.inv_d2}</td>
+                          <td className="p-2 border text-green-600">{Math.round(m.I * m.d * m.d * 100) / 100}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-muted-foreground text-center mt-1 font-cairo">
+                    القيم في عمود "I × d²" يجب أن تكون ثابتة ≈ P/(4π) — هذا يثبت القانون
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
 
-        <div className="space-y-4">
+        {/* ── Controls ── */}
+        <div className="space-y-3">
           <Card>
-            <CardHeader>
-              <CardTitle className="font-cairo text-sm">لوحة التحكم</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm">⚙️ لوحة التحكم</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-cairo block mb-2">
-                  المسافة: {distance} cm
-                </label>
-                <Slider
-                  value={[distance]}
-                  onValueChange={(v) => !isRunning && setDistance(v[0])}
-                  min={5}
-                  max={50}
-                  step={1}
-                  disabled={isRunning}
-                />
+                <div className="flex justify-between mb-1">
+                  <label className="text-sm font-cairo font-semibold">موضع المستشعر</label>
+                  <Badge variant="secondary" className="font-cairo">{(detectorDist / 100).toFixed(1)} م</Badge>
+                </div>
+                <Slider value={[detectorDist]} onValueChange={handleDistanceChange} min={50} max={460} step={10} />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1 font-cairo">
+                  <span>0.5 م</span>
+                  <span>4.6 م</span>
+                </div>
               </div>
 
               <div>
-                <label className="text-sm font-cairo block mb-2">
-                  قوة المصدر: {sourcePower} W
-                </label>
-                <Slider
-                  value={[sourcePower]}
-                  onValueChange={(v) => !isRunning && setSourcePower(v[0])}
-                  min={50}
-                  max={200}
-                  step={10}
-                  disabled={isRunning}
-                />
+                <div className="flex justify-between mb-1">
+                  <label className="text-sm font-cairo font-semibold">قدرة المصدر</label>
+                  <Badge variant="secondary" className="font-cairo">{sourcePower} W</Badge>
+                </div>
+                <Slider value={[sourcePower]} onValueChange={handlePowerChange} min={10} max={500} step={10} />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="font-cairo text-sm">القياسات المباشرة</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm">📈 القياسات المباشرة</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-cairo">المسافة الحالية</span>
-                <Badge variant="secondary" className="font-cairo">{distance} cm</Badge>
+            <CardContent className="space-y-2">
+              {[
+                { label: 'المسافة d', value: `${(detectorDist / 100).toFixed(2)} م` },
+                { label: 'الشدة I', value: `${currentI} W/m²`, highlight: true },
+                { label: 'قدرة المصدر P', value: `${sourcePower} W` },
+                { label: 'I × d²', value: (currentI * Math.pow(detectorDist / 100, 2)).toFixed(3) },
+                { label: 'P / (4π)', value: (sourcePower / (4 * Math.PI)).toFixed(3) },
+              ].map(({ label, value, highlight }) => (
+                <div key={label} className="flex justify-between items-center">
+                  <span className="text-xs font-cairo text-muted-foreground">{label}</span>
+                  <Badge variant={highlight ? 'default' : 'outline'} className="font-cairo text-xs font-bold">{value}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm">🎯 خطوات التجربة</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ol className="text-xs font-cairo space-y-2 text-muted-foreground">
+                <li className="flex gap-2"><span className="font-bold text-primary">١</span> شغّل الأمواج واضبط قوة المصدر</li>
+                <li className="flex gap-2"><span className="font-bold text-primary">٢</span> ضع المستشعر عند 0.5م وسجّل القياس</li>
+                <li className="flex gap-2"><span className="font-bold text-primary">٣</span> حرّك المستشعر إلى 1م، 1.5م، 2م...</li>
+                <li className="flex gap-2"><span className="font-bold text-primary">٤</span> سجّل قياساً عند كل مسافة</li>
+                <li className="flex gap-2"><span className="font-bold text-primary">٥</span> تحقق أن I × d² ثابت</li>
+              </ol>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Learning mode */}
+      {mode === 'learning' && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card className="border-indigo-300 bg-indigo-50 dark:bg-indigo-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-base text-indigo-800 dark:text-indigo-300">
+                📐 قانون التربيع العكسي
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 font-cairo text-sm">
+              <div className="bg-white dark:bg-indigo-950 rounded p-3 border border-indigo-200 text-center">
+                <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 font-mono">I = P / (4πd²)</div>
+                <div className="text-xs text-muted-foreground mt-1">الشدة = القدرة ÷ (4π × المسافة²)</div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-cairo">الشدة المُقاسة</span>
-                <Badge className="font-cairo bg-amber-500">{currentIntensity.toFixed(2)} W/m²</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-cairo">عدد القراءات</span>
-                <Badge variant="secondary" className="font-cairo">{measurements.length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-cairo">النسبة (I ∝ 1/d²)</span>
-                <Badge className="font-cairo bg-purple-500">
-                  1/{(distance * distance / sourcePower).toFixed(0)}
-                </Badge>
+              <ul className="space-y-1 text-indigo-900 dark:text-indigo-200 text-xs">
+                <li>• <strong>I</strong> = شدة الموجة (W/m²)</li>
+                <li>• <strong>P</strong> = قدرة المصدر (W)</li>
+                <li>• <strong>d</strong> = المسافة من المصدر (m)</li>
+                <li>• <strong>4πd²</strong> = مساحة كرة نصف قطرها d</li>
+              </ul>
+              <div className="bg-yellow-50 dark:bg-yellow-950/30 rounded p-2 border border-yellow-200 text-xs">
+                <strong>💡 عند مضاعفة المسافة (d → 2d):</strong><br />
+                الشدة تصبح I / 4 (ربع القيمة)
               </div>
             </CardContent>
           </Card>
 
-          {mode === 'learning' && (
-            <Card className="bg-amber-50 border-amber-200">
-              <CardHeader>
-                <CardTitle className="font-cairo text-sm flex items-center gap-2">
-                  <span>💡</span> ملاحظة
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs font-cairo text-amber-900">
-                  شدة الضوء تتناسب عكسياً مع مربع المسافة من المصدر. عند مضاعفة المسافة، تصبح الشدة ربع القيمة الأصلية.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+          <Card className="border-green-300 bg-green-50 dark:bg-green-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-base text-green-800 dark:text-green-300">
+                ❓ أسئلة للتحليل
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 font-cairo text-xs text-green-900 dark:text-green-200">
+              <div className="flex gap-2"><span className="font-bold">١.</span> ما العلاقة بين شدة الصوت والمسافة؟</div>
+              <div className="flex gap-2"><span className="font-bold">٢.</span> إذا تضاعفت المسافة، بكم تنخفض الشدة؟</div>
+              <div className="flex gap-2"><span className="font-bold">٣.</span> لماذا تنخفض الشدة بتربيع المسافة وليس خطياً؟</div>
+              <div className="flex gap-2"><span className="font-bold">٤.</span> ما الذي يثبت أن عمود I × d² ثابت في الجدول؟</div>
+              <div className="flex gap-2"><span className="font-bold">٥.</span> كيف نطبق هذا القانون في تصميم نظام صوتي لقاعة؟</div>
+              <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded border border-green-200 text-green-800 dark:text-green-200">
+                <strong>الاستنتاج:</strong> الشدة تتناسب عكسياً مع مربع المسافة لأن الطاقة تتوزع على مساحة كروية تزداد بمربع نصف القطر.
+              </div>
+            </CardContent>
+          </Card>
 
-      {mode === 'learning' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-cairo">الشرح العلمي</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 font-cairo text-sm">
-            <div>
-              <h4 className="font-semibold mb-2">🎯 الهدف:</h4>
-              <p>دراسة العلاقة بين شدة الموجة الضوئية والمسافة من مصدر نقطي، والتحقق من قانون التربيع العكسي.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">👀 ماذا نلاحظ:</h4>
-              <p>كلما ابتعد المستشعر عن المصدر، تقل شدة الضوء بشكل كبير. الانخفاض ليس خطياً بل يتبع علاقة تربيعية عكسية.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">🔬 القانون:</h4>
-              <p className="font-mono text-xs bg-gray-100 p-2 rounded">
-                I = P / (4πd²)
-                <br />
-                <br />
-                حيث:
-                <br />
-                I = الشدة (W/m²)
-                <br />
-                P = قدرة المصدر (W)
-                <br />
-                d = المسافة من المصدر (m)
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">📊 المتغيرات:</h4>
-              <ul className="list-disc list-inside space-y-1 mr-4">
-                <li><strong>المستقل:</strong> المسافة من مصدر الضوء (d)</li>
-                <li><strong>التابع:</strong> شدة الضوء المُقاسة (I)</li>
-                <li><strong>الثابت:</strong> قدرة مصدر الضوء، الوسط (الهواء)</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">💡 التفسير:</h4>
-              <p>
-                الموجات تنتشر من المصدر في جميع الاتجاهات على شكل كروي. مع زيادة المسافة، تتوزع الطاقة نفسها على مساحة سطح كروي أكبر (مساحة = 4πd²)، لذلك تقل الشدة بتربيع المسافة.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-cairo text-sm">🔬 المتغيرات والهدف</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3 text-xs font-cairo">
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded p-3 border border-blue-200">
+                  <div className="font-bold text-blue-700 dark:text-blue-300 mb-1">المتغير المستقل:</div>
+                  <div>المسافة من المصدر (d)</div>
+                </div>
+                <div className="bg-red-50 dark:bg-red-950/30 rounded p-3 border border-red-200">
+                  <div className="font-bold text-red-700 dark:text-red-300 mb-1">المتغير التابع:</div>
+                  <div>شدة الموجة (I)</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 border">
+                  <div className="font-bold text-gray-700 dark:text-gray-300 mb-1">المتغيرات الثابتة:</div>
+                  <div>قدرة المصدر، الوسط</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   )

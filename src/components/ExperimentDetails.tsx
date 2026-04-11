@@ -4,7 +4,37 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu, ClipboardText } from '@phosphor-icons/react'
+import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu, ClipboardText, ArrowSquareOut } from '@phosphor-icons/react'
+
+// ─── PhET simulation links mapped by subject/id ───────────────────────────────
+const PHET_LINKS: Record<string, { url: string; name: string }> = {
+  // Physics
+  'phys-1-6': { url: 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', name: 'Sound Waves' },
+  'inverse':  { url: 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', name: 'Sound Waves' },
+  'acceleration': { url: 'https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html', name: 'Forces & Motion' },
+  'kinetic':  { url: 'https://phet.colorado.edu/sims/html/energy-skate-park/latest/energy-skate-park_all.html', name: 'Energy Skate Park' },
+  // Chemistry
+  'ph':       { url: 'https://phet.colorado.edu/sims/html/ph-scale/latest/ph-scale_all.html', name: 'pH Scale' },
+  'titration':{ url: 'https://phet.colorado.edu/sims/html/acid-base-solutions/latest/acid-base-solutions_all.html', name: 'Acid-Base Solutions' },
+  'chem-1-6': { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
+  'reaction': { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
+  // Biology
+  'membrane': { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
+  'meiosis':  { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
+  'photosynth':{ url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
+  'yeast':    { url: 'https://phet.colorado.edu/sims/html/sugar-and-salt-solutions/latest/sugar-and-salt-solutions_all.html', name: 'Sugar & Salt' },
+}
+
+function getPhETLink(id: string, subject: string): { url: string; name: string } | null {
+  for (const [key, val] of Object.entries(PHET_LINKS)) {
+    if (id.includes(key) || id === key) return val
+  }
+  // Fallback by subject
+  if (subject === 'physics') return { url: 'https://phet.colorado.edu/en/simulations/filter?subjects=physics', name: 'Physics Sims' }
+  if (subject === 'chemistry') return { url: 'https://phet.colorado.edu/en/simulations/filter?subjects=chemistry', name: 'Chemistry Sims' }
+  if (subject === 'biology') return { url: 'https://phet.colorado.edu/en/simulations/filter?subjects=biology', name: 'Biology Sims' }
+  return null
+}
 import { MembraneTransportSim } from '@/components/simulations/MembraneTransportSim'
 import { PHTitrationSim } from '@/components/simulations/PHTitrationSim'
 import { InverseSquareLawSim } from '@/components/simulations/InverseSquareLawSim'
@@ -155,7 +185,21 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
               </TabsList>
 
               {hasSimulation && (
-                <TabsContent value="simulation" className="mt-4">
+                <TabsContent value="simulation" className="mt-4 space-y-3">
+                  {(() => {
+                    const phet = getPhETLink(experiment.id, experiment.subject)
+                    return phet ? (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => window.open(phet.url, '_blank')}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-cairo transition-colors"
+                        >
+                          <ArrowSquareOut size={15} />
+                          تشغيل محاكاة PhET — {phet.name}
+                        </button>
+                      </div>
+                    ) : null
+                  })()}
                   {getSimulationComponent()}
                 </TabsContent>
               )}
