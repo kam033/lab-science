@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/useKV'
 import { experiments, subjects, Experiment } from '@/data/experiments'
 import { ExperimentCard } from '@/components/ExperimentCard'
 import { ExperimentDetails } from '@/components/ExperimentDetails'
