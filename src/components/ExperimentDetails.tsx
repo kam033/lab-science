@@ -14,6 +14,7 @@ import { PhotosynthesisSim } from '@/components/simulations/PhotosynthesisSim'
 import { AccelerationSim } from '@/components/simulations/AccelerationSim'
 import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
 import { TitrationCurveSim } from '@/components/simulations/TitrationCurveSim'
+import { ReactionRateSim } from '@/components/simulations/ReactionRateSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -41,6 +42,10 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <MembraneTransportSim />
     }
     
+    if (id === 'chem-1-6' || id.includes('reaction-rate') || id.includes('تركيز') || id.includes('kinetics')) {
+      return <ReactionRateSim />
+    }
+
     if (id.includes('ph') || id === 'chem-1-1' || id === 'chem-1-1-ph-intro') {
       return <PHTitrationSim />
     }
