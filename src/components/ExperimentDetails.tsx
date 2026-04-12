@@ -85,16 +85,16 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <ReactionRateSim />
     }
 
-    if (id.includes('ph') || id === 'chem-1-1' || id === 'chem-1-1-ph-intro') {
-      return <PHTitrationSim />
-    }
-    
-    if (id.includes('titration') || id.includes('معايرة')) {
-      return <TitrationCurveSim />
-    }
-    
     if (id.includes('inverse') || id === 'phys-1-6') {
       return <InverseSquareLawSim />
+    }
+
+    if (id.includes('ph-') || id.includes('-ph') || id === 'chem-1-1' || id === 'chem-1-1-ph-intro' || (id.includes('ph') && !id.includes('phys'))) {
+      return <PHTitrationSim />
+    }
+
+    if (id.includes('titration') || id.includes('معايرة')) {
+      return <TitrationCurveSim />
     }
     
     if (id.includes('yeast') || id.includes('respiration') || id.includes('خميرة') || id === 'bio-1-6' || id === 'bio-6-2-fermentation') {
