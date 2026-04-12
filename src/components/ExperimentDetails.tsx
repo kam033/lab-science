@@ -23,6 +23,11 @@ const PHET_LINKS: Record<string, { url: string; name: string }> = {
   'meiosis':  { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
   'photosynth':{ url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
   'yeast':    { url: 'https://phet.colorado.edu/sims/html/sugar-and-salt-solutions/latest/sugar-and-salt-solutions_all.html', name: 'Sugar & Salt' },
+  // New Physics
+  'phys-1-7': { url: 'https://phet.colorado.edu/sims/html/wave-interference/latest/wave-interference_all.html', name: 'Wave Interference' },
+  'phys-2-7': { url: 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_all.html', name: 'Wave on a String' },
+  'phys-1-8': { url: 'https://phet.colorado.edu/sims/html/blackbody-spectrum/latest/blackbody-spectrum_all.html', name: 'Blackbody Spectrum' },
+  'phys-1-9': { url: 'https://phet.colorado.edu/sims/html/radioactive-dating-game/latest/radioactive-dating-game_en.html', name: 'Radioactive Dating' },
 }
 
 function getPhETLink(id: string, subject: string): { url: string; name: string } | null {
@@ -45,6 +50,10 @@ import { AccelerationSim } from '@/components/simulations/AccelerationSim'
 import { KineticEnergySim } from '@/components/simulations/KineticEnergySim'
 import { TitrationCurveSim } from '@/components/simulations/TitrationCurveSim'
 import { ReactionRateSim } from '@/components/simulations/ReactionRateSim'
+import { DiffractionGratingSim } from '@/components/simulations/DiffractionGratingSim'
+import { StandingWavesSim } from '@/components/simulations/StandingWavesSim'
+import { PlancksConstantSim } from '@/components/simulations/PlancksConstantSim'
+import { RadioactiveDecaySim } from '@/components/simulations/RadioactiveDecaySim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -107,7 +116,23 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
     if (id.includes('kinetic') || id.includes('potential') || id.includes('energy') || id.includes('طاقة') || id === 'phys-2-1-kinetic' || id === 'phys-2-2-potential' || id === 'phys-2-3-conservation') {
       return <KineticEnergySim />
     }
-    
+
+    if (id === 'phys-1-7' || id.includes('diffraction') || id.includes('حيود') || id.includes('grating') || id.includes('laser')) {
+      return <DiffractionGratingSim />
+    }
+
+    if (id === 'phys-2-7' || id.includes('standing') || id.includes('مستقرة') || id.includes('slinky') || id.includes('string')) {
+      return <StandingWavesSim />
+    }
+
+    if (id === 'phys-1-8' || id.includes('planck') || id.includes('بلانك') || id.includes('led') || id.includes('photoelectric')) {
+      return <PlancksConstantSim />
+    }
+
+    if (id === 'phys-1-9' || id.includes('radioactive') || id.includes('decay') || id.includes('إشعاعي') || id.includes('nuclear') || id.includes('نووي')) {
+      return <RadioactiveDecaySim />
+    }
+
     return <div className="text-center p-8 space-y-4">
       <Cpu size={64} className="mx-auto text-muted-foreground" weight="duotone" />
       <h3 className="text-xl font-bold font-cairo">مختبر تفاعلي قريباً</h3>
