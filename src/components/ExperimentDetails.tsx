@@ -56,6 +56,7 @@ import { PlancksConstantSim } from '@/components/simulations/PlancksConstantSim'
 import { RadioactiveDecaySim } from '@/components/simulations/RadioactiveDecaySim'
 import { ElectrochemicalCellSim } from '@/components/simulations/ElectrochemicalCellSim'
 import { FaradayConstantSim } from '@/components/simulations/FaradayConstantSim'
+import { LigandSubstitutionSim } from '@/components/simulations/LigandSubstitutionSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -141,6 +142,10 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
 
     if (id === 'chem-2-2' || id.includes('faraday') || id.includes('فارادي') || id.includes('electrolysis') || id.includes('تحليل-كهربائي')) {
       return <FaradayConstantSim />
+    }
+
+    if (id === 'chem-1-5' || id.includes('ligand') || id.includes('ليجند') || id.includes('معقد') || id.includes('complex')) {
+      return <LigandSubstitutionSim />
     }
 
     return <div className="text-center p-8 space-y-4">
