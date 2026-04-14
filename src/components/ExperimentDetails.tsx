@@ -57,6 +57,12 @@ import { RadioactiveDecaySim } from '@/components/simulations/RadioactiveDecaySi
 import { ElectrochemicalCellSim } from '@/components/simulations/ElectrochemicalCellSim'
 import { FaradayConstantSim } from '@/components/simulations/FaradayConstantSim'
 import { LigandSubstitutionSim } from '@/components/simulations/LigandSubstitutionSim'
+import { WaveFrequencySim } from '@/components/simulations/WaveFrequencySim'
+import { TransitionMetalsSim } from '@/components/simulations/TransitionMetalsSim'
+import { BenzeneSim } from '@/components/simulations/BenzeneSim'
+import { CellMicroscopySim } from '@/components/simulations/CellMicroscopySim'
+import { KidneyOsmosisSim } from '@/components/simulations/KidneyOsmosisSim'
+import { PhototrophismSim } from '@/components/simulations/PhototrophismSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -146,6 +152,41 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
 
     if (id === 'chem-1-5' || id.includes('ligand') || id.includes('ليجند') || id.includes('معقد') || id.includes('complex')) {
       return <LigandSubstitutionSim />
+    }
+
+    // ── Reaction rate factors & collision theory ───────────────────────────
+    if (id === 'chem-6-2-factors' || id === 'chem-6-4-collision' || id.includes('collision') || id.includes('factors') || id.includes('تصادم') || id.includes('عوامل')) {
+      return <ReactionRateSim />
+    }
+
+    // ── Wave frequency / wavelength measurement ────────────────────────────
+    if (id === 'phys-6-3-wavelength' || id.includes('wavelength') || id.includes('frequency') || id.includes('تردد') || id.includes('طول-موجي')) {
+      return <WaveFrequencySim />
+    }
+
+    // ── Transition metals ──────────────────────────────────────────────────
+    if (id === 'chem-5-1-transition' || id.includes('transition') || id.includes('انتقالية')) {
+      return <TransitionMetalsSim />
+    }
+
+    // ── Benzene / organic chemistry ────────────────────────────────────────
+    if (id === 'chem-1-8' || id === 'chem-8-1-benzene' || id.includes('benzene') || id.includes('بنزين') || id.includes('nitration') || id.includes('نترتة')) {
+      return <BenzeneSim />
+    }
+
+    // ── Cell microscopy ────────────────────────────────────────────────────
+    if (id === 'bio-1-1-cell' || id.includes('cell-structure') || id.includes('microscop') || id.includes('خلية')) {
+      return <CellMicroscopySim />
+    }
+
+    // ── Kidney anatomy & osmosis / water regulation ────────────────────────
+    if (id === 'bio-4-1-kidney' || id === 'bio-4-3-water' || id.includes('kidney') || id.includes('كلية') || id.includes('osmosis') || id.includes('أسموزي') || id.includes('water-reg') || id.includes('adh')) {
+      return <KidneyOsmosisSim />
+    }
+
+    // ── Phototropism ───────────────────────────────────────────────────────
+    if (id === 'bio-2-5' || id.includes('phototropism') || id.includes('انتحاء') || id.includes('tropism')) {
+      return <PhototrophismSim />
     }
 
     return <div className="text-center p-8 space-y-4">
