@@ -63,6 +63,7 @@ import { BenzeneSim } from '@/components/simulations/BenzeneSim'
 import { CellMicroscopySim } from '@/components/simulations/CellMicroscopySim'
 import { KidneyOsmosisSim } from '@/components/simulations/KidneyOsmosisSim'
 import { PhototrophismSim } from '@/components/simulations/PhototrophismSim'
+import { CO2PhotosynthesisSim } from '@/components/simulations/CO2PhotosynthesisSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -114,7 +115,13 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <MeiosisSim />
     }
     
-    if (id.includes('photosynth') || id.includes('ضوئي') || id === 'bio-3-7' || id === 'bio-5-7' || id === 'bio-7-3-pigments') {
+    // ── CO₂ effect on photosynthesis (specific experiment) ────────────────
+    if (id === 'bio-5-7' || id.includes('co2') || id.includes('CO2') || id.includes('ثاني-أكسيد') || id.includes('carbon-dioxide')) {
+      return <CO2PhotosynthesisSim />
+    }
+
+    // ── Gas exchange / general photosynthesis ─────────────────────────────
+    if (id.includes('photosynth') || id.includes('ضوئي') || id === 'bio-3-7' || id === 'bio-7-3-pigments') {
       return <PhotosynthesisSim />
     }
     
