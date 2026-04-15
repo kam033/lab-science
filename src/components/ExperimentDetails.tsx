@@ -64,6 +64,7 @@ import { CellMicroscopySim } from '@/components/simulations/CellMicroscopySim'
 import { KidneyOsmosisSim } from '@/components/simulations/KidneyOsmosisSim'
 import { PhototrophismSim } from '@/components/simulations/PhototrophismSim'
 import { CO2PhotosynthesisSim } from '@/components/simulations/CO2PhotosynthesisSim'
+import { GravitationalPotentialEnergySim } from '@/components/simulations/GravitationalPotentialEnergySim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -129,7 +130,11 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <AccelerationSim />
     }
     
-    if (id.includes('kinetic') || id.includes('potential') || id.includes('energy') || id.includes('طاقة') || id === 'phys-2-1-kinetic' || id === 'phys-2-2-potential' || id === 'phys-2-3-conservation') {
+    if (id === 'phys-2-2-potential' || id.includes('gravitational') || id.includes('الوضع الجذبية')) {
+      return <GravitationalPotentialEnergySim />
+    }
+
+    if (id.includes('kinetic') || id.includes('potential') || id.includes('energy') || id.includes('طاقة') || id === 'phys-2-1-kinetic' || id === 'phys-2-3-conservation') {
       return <KineticEnergySim />
     }
 
