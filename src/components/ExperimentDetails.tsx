@@ -65,6 +65,7 @@ import { KidneyOsmosisSim } from '@/components/simulations/KidneyOsmosisSim'
 import { PhototrophismSim } from '@/components/simulations/PhototrophismSim'
 import { CO2PhotosynthesisSim } from '@/components/simulations/CO2PhotosynthesisSim'
 import { GravitationalPotentialEnergySim } from '@/components/simulations/GravitationalPotentialEnergySim'
+import { PhotoelectricEffectSim } from '@/components/simulations/PhotoelectricEffectSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
 import { DynamicQuizGenerator } from '@/components/DynamicQuizGenerator'
 
@@ -146,7 +147,11 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <StandingWavesSim />
     }
 
-    if (id === 'phys-1-8' || id.includes('planck') || id.includes('بلانك') || id.includes('led') || id.includes('photoelectric')) {
+    if (id === 'phys-8-2-photoelectric' || id.includes('photoelectric') || id.includes('كهروضوئي')) {
+      return <PhotoelectricEffectSim />
+    }
+
+    if (id === 'phys-1-8' || id.includes('planck') || id.includes('بلانك') || id.includes('led')) {
       return <PlancksConstantSim />
     }
 
