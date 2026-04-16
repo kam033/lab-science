@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Experiment, subjects, skillColors } from '@/data/experiments'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
@@ -5,6 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Flask, Atom, Leaf, Target, Flask as ComponentsIcon, Gear, ListChecks, WarningCircle, Lightbulb, Cpu, ClipboardText, ArrowSquareOut } from '@phosphor-icons/react'
+
+// ─── Tab configuration with colors ───────────────────────────────────────────
+const ALL_TABS = [
+  { value: 'simulation',    label: 'المختبر',      icon: '🔬', color: '#2563eb', light: '#dbeafe', simOnly: true  },
+  { value: 'dynamic-quiz',  label: 'نماذج متعددة', icon: '📋', color: '#0d9488', light: '#ccfbf1', simOnly: false },
+  { value: 'quiz',          label: 'ذكي ✨',        icon: '🤖', color: '#7c3aed', light: '#ede9fe', simOnly: false },
+  { value: 'overview',      label: 'نظرة عامة',    icon: '👁️', color: '#0284c7', light: '#e0f2fe', simOnly: false },
+  { value: 'components',    label: 'المكونات',      icon: '🧪', color: '#16a34a', light: '#dcfce7', simOnly: false },
+  { value: 'apparatus',     label: 'الأجهزة',       icon: '⚗️', color: '#b45309', light: '#fef3c7', simOnly: false },
+  { value: 'steps',         label: 'الخطوات',       icon: '📝', color: '#4338ca', light: '#e0e7ff', simOnly: false },
+  { value: 'safety',        label: 'السلامة',       icon: '⚠️', color: '#dc2626', light: '#fee2e2', simOnly: false },
+]
 
 // ─── PhET simulation links mapped by subject/id ───────────────────────────────
 const PHET_LINKS: Record<string, { url: string; name: string }> = {
@@ -80,12 +93,14 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
   if (!experiment) return null
 
   const subjectInfo = subjects[experiment.subject]
-  const SubjectIcon = 
+  const SubjectIcon =
     experiment.subject === 'chemistry' ? Flask :
     experiment.subject === 'physics' ? Atom :
     Leaf
 
   const hasSimulation = true
+  const TABS = ALL_TABS.filter(t => !t.simOnly || hasSimulation)
+  const [activeTab, setActiveTab] = useState(hasSimulation ? 'simulation' : 'overview')
 
   const getSimulationComponent = () => {
     const id = experiment.id
@@ -226,8 +241,8 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-4 border-b">
+      <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden">
+        <DialogHeader className="p-5 pb-4 border-b bg-gradient-to-l from-transparent" style={{ borderColor: `${subjectInfo.color}30` }}>
           <div className="flex items-start gap-4">
             <div 
               className="p-3 rounded-xl"
@@ -274,18 +289,37 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
           </div>
         </DialogHeader>
 
-        <ScrollArea className="h-[calc(90vh-200px)]">
-          <div className="p-6 space-y-6">
-            <Tabs defaultValue={hasSimulation ? "simulation" : "overview"} dir="rtl">
-              <TabsList className={`grid w-full font-cairo ${hasSimulation ? 'grid-cols-8' : 'grid-cols-7'}`}>
-                {hasSimulation && <TabsTrigger value="simulation"><Cpu size={16} className="ml-1 inline" />المختبر</TabsTrigger>}
-                <TabsTrigger value="dynamic-quiz"><ClipboardText size={16} className="ml-1 inline" />نماذج متعددة</TabsTrigger>
-                <TabsTrigger value="quiz"><ClipboardText size={16} className="ml-1 inline" />ذكي</TabsTrigger>
-                <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-                <TabsTrigger value="components">المكونات</TabsTrigger>
-                <TabsTrigger value="apparatus">الأجهزة</TabsTrigger>
-                <TabsTrigger value="steps">الخطوات</TabsTrigger>
-                <TabsTrigger value="safety">السلامة</TabsTrigger>
+        <ScrollArea className="h-[calc(96vh-185px)]">
+          <div className="p-5 space-y-5">
+            <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
+              <TabsList
+                className="flex w-full h-auto gap-1.5 p-1.5 rounded-2xl flex-wrap"
+                style={{ background: 'oklch(0.96 0.01 250)' }}
+              >
+                {TABS.map(tab => {
+                  const isActive = activeTab === tab.value
+                  return (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="flex-1 min-w-[80px] font-cairo font-semibold text-xs py-2.5 px-2 rounded-xl transition-all duration-200 border-2"
+                      style={isActive ? {
+                        backgroundColor: tab.color,
+                        color: '#fff',
+                        borderColor: tab.color,
+                        boxShadow: `0 4px 14px ${tab.color}55`,
+                        transform: 'translateY(-1px)',
+                      } : {
+                        backgroundColor: tab.light,
+                        color: tab.color,
+                        borderColor: `${tab.color}30`,
+                      }}
+                    >
+                      <span className="mr-1 text-sm">{tab.icon}</span>
+                      {tab.label}
+                    </TabsTrigger>
+                  )
+                })}
               </TabsList>
 
               {hasSimulation && (
@@ -296,9 +330,15 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
                       <div className="flex justify-end">
                         <button
                           onClick={() => window.open(phet.url, '_blank')}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-cairo transition-colors"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-cairo font-bold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+                          style={{
+                            background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                            color: '#fff',
+                            boxShadow: '0 4px 14px #f9731655',
+                            border: 'none',
+                          }}
                         >
-                          <ArrowSquareOut size={15} />
+                          <ArrowSquareOut size={16} weight="bold" />
                           تشغيل محاكاة PhET — {phet.name}
                         </button>
                       </div>
