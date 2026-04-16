@@ -64,6 +64,7 @@ import { CellMicroscopySim } from '@/components/simulations/CellMicroscopySim'
 import { KidneyOsmosisSim } from '@/components/simulations/KidneyOsmosisSim'
 import { PhototrophismSim } from '@/components/simulations/PhototrophismSim'
 import { CO2PhotosynthesisSim } from '@/components/simulations/CO2PhotosynthesisSim'
+import { ChromatographySim } from '@/components/simulations/ChromatographySim'
 import { GravitationalPotentialEnergySim } from '@/components/simulations/GravitationalPotentialEnergySim'
 import { PhotoelectricEffectSim } from '@/components/simulations/PhotoelectricEffectSim'
 import { SmartQuizGenerator } from '@/components/SmartQuizGenerator'
@@ -122,8 +123,13 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
       return <CO2PhotosynthesisSim />
     }
 
+    // ── Chromatography / pigment separation ───────────────────────────────
+    if (id === 'bio-7-3-pigments' || id.includes('pigment') || id.includes('chromatography') || id.includes('كروماتوغراف')) {
+      return <ChromatographySim />
+    }
+
     // ── Gas exchange / general photosynthesis ─────────────────────────────
-    if (id.includes('photosynth') || id.includes('ضوئي') || id === 'bio-3-7' || id === 'bio-7-3-pigments') {
+    if (id.includes('photosynth') || id.includes('ضوئي') || id === 'bio-3-7') {
       return <PhotosynthesisSim />
     }
     
