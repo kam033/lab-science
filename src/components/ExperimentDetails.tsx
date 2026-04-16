@@ -241,7 +241,7 @@ export function ExperimentDetails({ experiment, open, onClose }: ExperimentDetai
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-[96vw] sm:max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden">
         <DialogHeader className="p-5 pb-4 border-b bg-gradient-to-l from-transparent" style={{ borderColor: `${subjectInfo.color}30` }}>
           <div className="flex items-start gap-4">
             <div 
