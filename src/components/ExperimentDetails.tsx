@@ -19,34 +19,60 @@ const ALL_TABS = [
   { value: 'safety',        label: 'السلامة',       icon: '⚠️', color: '#dc2626', light: '#fee2e2', simOnly: false },
 ]
 
-// ─── PhET simulation links mapped by subject/id ───────────────────────────────
+// ─── PhET simulation links mapped by exact experiment ID ──────────────────────
 const PHET_LINKS: Record<string, { url: string; name: string }> = {
-  // Physics
-  'phys-1-6': { url: 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', name: 'Sound Waves' },
-  'inverse':  { url: 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', name: 'Sound Waves' },
-  'acceleration': { url: 'https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html', name: 'Forces & Motion' },
-  'kinetic':  { url: 'https://phet.colorado.edu/sims/html/energy-skate-park/latest/energy-skate-park_all.html', name: 'Energy Skate Park' },
-  // Chemistry
-  'ph':       { url: 'https://phet.colorado.edu/sims/html/ph-scale/latest/ph-scale_all.html', name: 'pH Scale' },
-  'titration':{ url: 'https://phet.colorado.edu/sims/html/acid-base-solutions/latest/acid-base-solutions_all.html', name: 'Acid-Base Solutions' },
-  'chem-1-6': { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
-  'reaction': { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
-  // Biology
-  'membrane': { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
-  'meiosis':  { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
-  'photosynth':{ url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
-  'yeast':    { url: 'https://phet.colorado.edu/sims/html/sugar-and-salt-solutions/latest/sugar-and-salt-solutions_all.html', name: 'Sugar & Salt' },
-  // New Physics
-  'phys-1-7': { url: 'https://phet.colorado.edu/sims/html/wave-interference/latest/wave-interference_all.html', name: 'Wave Interference' },
-  'phys-2-7': { url: 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_all.html', name: 'Wave on a String' },
-  'phys-1-8': { url: 'https://phet.colorado.edu/sims/html/blackbody-spectrum/latest/blackbody-spectrum_all.html', name: 'Blackbody Spectrum' },
-  'phys-1-9': { url: 'https://phet.colorado.edu/sims/html/radioactive-dating-game/latest/radioactive-dating-game_en.html', name: 'Radioactive Dating' },
+  // Physics — Waves
+  'phys-1-6':             { url: 'https://phet.colorado.edu/sims/html/sound-waves/latest/sound-waves_all.html', name: 'Sound Waves' },
+  'phys-1-7':             { url: 'https://phet.colorado.edu/sims/html/wave-interference/latest/wave-interference_all.html', name: 'Wave Interference' },
+  'phys-2-7':             { url: 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_all.html', name: 'Wave on a String' },
+  'phys-6-3-wavelength':  { url: 'https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_all.html', name: 'Wave on a String' },
+  // Physics — Motion & Energy
+  'phys-1-1-displacement':{ url: 'https://phet.colorado.edu/sims/html/moving-man/latest/moving-man_en.html', name: 'The Moving Man' },
+  'phys-1-1-acceleration':{ url: 'https://phet.colorado.edu/sims/html/forces-and-motion-basics/latest/forces-and-motion-basics_all.html', name: 'Forces & Motion' },
+  'phys-2-1-kinetic':     { url: 'https://phet.colorado.edu/sims/html/energy-skate-park/latest/energy-skate-park_all.html', name: 'Energy Skate Park' },
+  'phys-2-2-potential':   { url: 'https://phet.colorado.edu/sims/html/energy-skate-park/latest/energy-skate-park_all.html', name: 'Energy Skate Park' },
+  'phys-2-3-conservation':{ url: 'https://phet.colorado.edu/sims/html/energy-skate-park/latest/energy-skate-park_all.html', name: 'Energy Skate Park' },
+  // Physics — Quantum & Modern
+  'phys-1-8':             { url: 'https://phet.colorado.edu/sims/html/blackbody-spectrum/latest/blackbody-spectrum_all.html', name: 'Blackbody Spectrum' },
+  'phys-8-2-photoelectric':{ url: 'https://phet.colorado.edu/sims/html/photoelectric-effect/latest/photoelectric-effect_en.html', name: 'Photoelectric Effect' },
+  'phys-1-9':             { url: 'https://phet.colorado.edu/sims/html/radioactive-dating-game/latest/radioactive-dating-game_en.html', name: 'Radioactive Dating' },
+  // Chemistry — Acids & pH
+  'chem-1-1':             { url: 'https://phet.colorado.edu/sims/html/acid-base-solutions/latest/acid-base-solutions_all.html', name: 'Acid-Base Solutions' },
+  'chem-1-1-ph-intro':    { url: 'https://phet.colorado.edu/sims/html/ph-scale/latest/ph-scale_all.html', name: 'pH Scale' },
+  // Chemistry — Electrochemistry
+  'chem-1-2':             { url: 'https://phet.colorado.edu/sims/html/circuit-construction-kit-dc/latest/circuit-construction-kit-dc_all.html', name: 'Circuit Construction' },
+  'chem-2-2':             { url: 'https://phet.colorado.edu/sims/html/electrolysis/latest/electrolysis_all.html', name: 'Electrolysis' },
+  'chem-2-3-electrolysis':{ url: 'https://phet.colorado.edu/sims/html/electrolysis/latest/electrolysis_all.html', name: 'Electrolysis' },
+  // Chemistry — Reactions
+  'chem-1-6':             { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
+  'chem-6-2-factors':     { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
+  'chem-6-4-collision':   { url: 'https://phet.colorado.edu/sims/html/reactions-and-rates/latest/reactions-and-rates_all.html', name: 'Reactions & Rates' },
+  // Chemistry — Molecular
+  'chem-1-5':             { url: 'https://phet.colorado.edu/sims/html/molecule-shapes/latest/molecule-shapes_all.html', name: 'Molecule Shapes' },
+  'chem-1-8':             { url: 'https://phet.colorado.edu/sims/html/molecule-shapes/latest/molecule-shapes_all.html', name: 'Molecule Shapes' },
+  'chem-8-1-benzene':     { url: 'https://phet.colorado.edu/sims/html/molecule-shapes/latest/molecule-shapes_all.html', name: 'Molecule Shapes' },
+  'chem-5-1-transition':  { url: 'https://phet.colorado.edu/sims/html/molecule-shapes/latest/molecule-shapes_all.html', name: 'Molecule Shapes' },
+  // Biology — Membrane & Transport
+  'bio-membrane':         { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
+  'bio-1-3-transport':    { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
+  'bio-4-1-kidney':       { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
+  'bio-4-3-water':        { url: 'https://phet.colorado.edu/sims/html/membrane-channels/latest/membrane-channels_all.html', name: 'Membrane Channels' },
+  // Biology — Cell Division
+  'bio-1-1':              { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
+  'bio-1-1-cell':         { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
+  'bio-2-2-mitosis':      { url: 'https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_all.html', name: 'Natural Selection' },
+  // Biology — Photosynthesis & Gas Exchange
+  'bio-2-5':              { url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
+  'bio-3-7':              { url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
+  'bio-5-7':              { url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
+  'bio-7-3-pigments':     { url: 'https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_all.html', name: 'Greenhouse Effect' },
+  // Biology — Respiration & Fermentation
+  'bio-1-6':              { url: 'https://phet.colorado.edu/sims/html/sugar-and-salt-solutions/latest/sugar-and-salt-solutions_all.html', name: 'Sugar & Salt' },
+  'bio-6-2-fermentation': { url: 'https://phet.colorado.edu/sims/html/sugar-and-salt-solutions/latest/sugar-and-salt-solutions_all.html', name: 'Sugar & Salt' },
 }
 
 function getPhETLink(id: string, subject: string): { url: string; name: string } | null {
-  for (const [key, val] of Object.entries(PHET_LINKS)) {
-    if (id.includes(key) || id === key) return val
-  }
+  if (PHET_LINKS[id]) return PHET_LINKS[id]
   // Fallback by subject
   if (subject === 'physics') return { url: 'https://phet.colorado.edu/en/simulations/filter?subjects=physics', name: 'Physics Sims' }
   if (subject === 'chemistry') return { url: 'https://phet.colorado.edu/en/simulations/filter?subjects=chemistry', name: 'Chemistry Sims' }
