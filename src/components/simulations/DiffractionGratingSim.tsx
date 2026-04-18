@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowClockwise } from '@phosphor-icons/react'
+import { ArrowClockwise, Play, Pause } from '@phosphor-icons/react'
 
 // ─── Laser colours ────────────────────────────────────────────────────────────
 function wavelengthToColor(nm: number): string {
@@ -302,8 +302,26 @@ export function DiffractionGratingSim() {
   const [gratingN, setGratingN]     = useState(600)    // lines/mm
   const [distCm, setDistCm]         = useState(50)     // cm
   const [orders, setOrders]         = useState(3)
+  const [isRunning, setIsRunning]   = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const reset = () => { setWavelength(532); setGratingN(600); setDistCm(50); setOrders(3) }
+  const reset = () => {
+    setIsRunning(false)
+    setWavelength(532); setGratingN(600); setDistCm(50); setOrders(3)
+  }
+
+  // Sweep through visible spectrum when running
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      setWavelength(w => w >= 700 ? 380 : w + 10)
+    }, 120)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning])
+
   const color = wavelengthToColor(wavelength)
 
   return (
@@ -315,9 +333,15 @@ export function DiffractionGratingSim() {
           <h3 className="font-bold text-base text-foreground">🔬 قياس طول موجة الليزر بمحزوز الحيود</h3>
           <p className="text-xs text-muted-foreground mt-0.5">التخطيط لتجربة — وحدة الفيزياء الضوئية</p>
         </div>
-        <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={reset}>
-          <ArrowClockwise size={13}/> إعادة ضبط
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={reset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Canvas */}

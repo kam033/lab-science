@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Atom } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { Atom, Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -224,13 +225,44 @@ function ReactionPanel({ ion, metalSymbol }: ReactionPanelProps) {
 
 export function TransitionMetalsSim() {
   const [selectedMetal, setSelectedMetal] = useState<Metal>(METALS[0])
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    let i = METALS.findIndex(m => m.symbol === selectedMetal.symbol)
+    intervalRef.current = setInterval(() => {
+      i = (i + 1) % METALS.length
+      setSelectedMetal(METALS[i])
+    }, 1800)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning])
+
+  const handleReset = () => {
+    setIsRunning(false)
+    setSelectedMetal(METALS[0])
+  }
 
   return (
     <div className="space-y-4 font-cairo" dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Atom size={20} weight="fill" className="text-purple-400" />
-        <h3 className="font-bold text-lg">ألوان العناصر الانتقالية</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Atom size={20} weight="fill" className="text-purple-400" />
+          <h3 className="font-bold text-lg">ألوان العناصر الانتقالية</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Metal selector */}

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Atom } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { Atom, Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ─── Benzene ring SVG ─────────────────────────────────────────────────────────
 
@@ -151,13 +152,51 @@ export function BenzeneSim() {
   const [tab, setTab] = useState<Tab>('structure')
   const [resonance, setResonance] = useState<1 | 2 | 'circle'>(1)
   const [nitrationStep, setNitrationStep] = useState(0)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Auto-cycle: alternate resonance structures (structure tab) or step through nitration
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      if (tab === 'structure') {
+        setResonance(r => r === 1 ? 2 : r === 2 ? 'circle' : 1)
+      } else if (tab === 'nitration') {
+        setNitrationStep(s => (s + 1) % 4)
+      } else {
+        setIsRunning(false)
+      }
+    }, 1200)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning, tab])
+
+  const handleReset = () => {
+    setIsRunning(false)
+    setTab('structure')
+    setResonance(1)
+    setNitrationStep(0)
+  }
 
   return (
     <div className="space-y-4 font-cairo" dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Atom size={20} weight="fill" className="text-purple-400" />
-        <h3 className="font-bold text-lg">البنزين وتفاعلاته</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Atom size={20} weight="fill" className="text-purple-400" />
+          <h3 className="font-bold text-lg">البنزين وتفاعلاته</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Tab nav */}

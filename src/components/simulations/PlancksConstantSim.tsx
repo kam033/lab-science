@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Line, LineChart,
@@ -33,6 +35,25 @@ const C = 3e8
 export function PlancksConstantSim() {
   const [voltages, setVoltages] = useState<number[]>(LEDS.map(l => l.defaultVoltage))
   const [activeLed, setActiveLed] = useState(0)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      setActiveLed(i => (i + 1) % LEDS.length)
+    }, 1500)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning])
+
+  const handleReset = () => {
+    setIsRunning(false)
+    setVoltages(LEDS.map(l => l.defaultVoltage))
+    setActiveLed(0)
+  }
 
   // For each LED: frequency (Hz) and energy (J)
   const ledData = useMemo(() =>
@@ -69,11 +90,22 @@ export function PlancksConstantSim() {
     <div className="space-y-5" dir="rtl">
 
       {/* Header */}
-      <div>
-        <h3 className="font-cairo font-bold text-base">💡 تجربة تحديد ثابت بلانك باستخدام LEDs</h3>
-        <p className="text-xs text-muted-foreground font-cairo mt-0.5">
-          اضبط جهد العتبة لكل لمبة LED، ثم ارسم العلاقة بين الطاقة والتردد لإيجاد ثابت بلانك
-        </p>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div>
+          <h3 className="font-cairo font-bold text-base">💡 تجربة تحديد ثابت بلانك باستخدام LEDs</h3>
+          <p className="text-xs text-muted-foreground font-cairo mt-0.5">
+            اضبط جهد العتبة لكل لمبة LED، ثم ارسم العلاقة بين الطاقة والتردد لإيجاد ثابت بلانك
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* LED selector + slider */}

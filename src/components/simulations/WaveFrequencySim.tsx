@@ -2,23 +2,34 @@ import { useState, useRef, useEffect } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Waves } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { Waves, Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CW = 560
 const CH = 200
 const WAVE_SPEED = 340  // m/s (speed of sound in air)
+const DEFAULT_FREQ = 2
+const DEFAULT_AMP = 50
 
 export function WaveFrequencySim() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
   const timeRef = useRef<number>(0)
 
-  const [frequency, setFrequency] = useState(2)   // Hz (2–10)
-  const [amplitude, setAmplitude] = useState(50)   // px
+  const [frequency, setFrequency] = useState(DEFAULT_FREQ)   // Hz (2–10)
+  const [amplitude, setAmplitude] = useState(DEFAULT_AMP)    // px
+  const [isRunning, setIsRunning] = useState(true)
 
   const wavelength = +(WAVE_SPEED / frequency).toFixed(2)
   const period = +(1 / frequency).toFixed(3)
+
+  const handleReset = () => {
+    setFrequency(DEFAULT_FREQ)
+    setAmplitude(DEFAULT_AMP)
+    timeRef.current = 0
+    setIsRunning(true)
+  }
 
   // ─── Animation ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,20 +114,31 @@ export function WaveFrequencySim() {
       ctx.textAlign = 'right'
       ctx.fillText(`A = ${amplitude} u`, CW - 24, CH / 2 - amplitude / 2)
 
-      timeRef.current += 0.016
+      if (isRunning) timeRef.current += 0.016
       animRef.current = requestAnimationFrame(draw)
     }
 
     animRef.current = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(animRef.current)
-  }, [frequency, amplitude, wavelength])
+  }, [frequency, amplitude, wavelength, isRunning])
 
   return (
     <div className="space-y-4 font-cairo" dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Waves size={20} weight="fill" className="text-blue-500" />
-        <h3 className="font-bold text-lg">محاكاة الموجات: v = f · λ</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Waves size={20} weight="fill" className="text-blue-500" />
+          <h3 className="font-bold text-lg">محاكاة الموجات: v = f · λ</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Canvas */}

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MagnifyingGlass } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { MagnifyingGlass, Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -231,16 +232,51 @@ export function CellMicroscopySim() {
   const [cellType, setCellType] = useState<'plant' | 'animal'>('plant')
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const [zoom, setZoom] = useState<number>(400)  // magnification
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const selected = highlighted ? ORGANELLES.find(o => o.id === highlighted) : null
   const visibleOrganelles = ORGANELLES.filter(o => o.presentIn.includes(cellType))
 
+  // Auto-tour: cycle through organelles
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    let i = 0
+    intervalRef.current = setInterval(() => {
+      const list = ORGANELLES.filter(o => o.presentIn.includes(cellType))
+      setHighlighted(list[i % list.length].id)
+      i++
+    }, 1500)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning, cellType])
+
+  const handleReset = () => {
+    setIsRunning(false)
+    setCellType('plant')
+    setHighlighted(null)
+    setZoom(400)
+  }
+
   return (
     <div className="space-y-4 font-cairo" dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <MagnifyingGlass size={20} weight="fill" className="text-green-400" />
-        <h3 className="font-bold text-lg">محاكاة المجهر — تركيب الخلية</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <MagnifyingGlass size={20} weight="fill" className="text-green-400" />
+          <h3 className="font-bold text-lg">محاكاة المجهر — تركيب الخلية</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Controls */}

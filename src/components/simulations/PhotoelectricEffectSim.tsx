@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
+import { Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ── Physics constants ──────────────────────────────────────────────────────
 const hc_eVnm = 1240   // h·c in eV·nm  → E(eV) = 1240 / λ(nm)
@@ -54,6 +55,7 @@ export function PhotoelectricEffectSim() {
   const intensityR = useRef(50)
   const metalIdxR  = useRef(0)
   const batteryR   = useRef(0)
+  const runningR   = useRef(true)
 
   // ── React state ────────────────────────────────────────────────────────────
   const [lambda,    setLambda]    = useState(400)
@@ -62,12 +64,22 @@ export function PhotoelectricEffectSim() {
   const [battery,   setBattery]   = useState(0)   // stopping voltage control
   const [tab, setTab]             = useState<'sim' | 'graph' | 'info'>('sim')
   const [liveI,     setLiveI]     = useState(0)   // mA
+  const [isRunning, setIsRunning] = useState(true)
 
   // Sync state → refs
   lambdaR.current    = lambda
   intensityR.current = intensity
   metalIdxR.current  = metalIdx
   batteryR.current   = battery
+  runningR.current   = isRunning
+
+  const handleReset = () => {
+    setLambda(400); setIntensity(50); setMetalIdx(0); setBattery(0)
+    electrons.current = []
+    photons.current   = []
+    setLiveI(0)
+    setIsRunning(true)
+  }
 
   // ── Derived physics ─────────────────────────────────────────────────────────
   const metal   = METALS[metalIdx]
@@ -96,17 +108,18 @@ export function PhotoelectricEffectSim() {
       const ints = intensityR.current / 100
       const mIdx = metalIdxR.current
       const bat  = batteryR.current
+      const running = runningR.current
       const m    = METALS[mIdx]
       const pE   = hc_eVnm / λ
       const ke   = Math.max(0, pE - m.phi)
-      const emit = pE > m.phi && bat <= ke
+      const emit = running && pE > m.phi && bat <= ke
 
-      frameRef.current++
+      if (running) frameRef.current++
       const frame = frameRef.current
 
       // ── Spawn photons ──
       const spawnInterval = 120 / Math.max(0.05, ints)
-      if (now - lastSpawnRef.current > spawnInterval) {
+      if (running && now - lastSpawnRef.current > spawnInterval) {
         lastSpawnRef.current = now
         photons.current.push({ x: 72, y: 55, vx: 2.8, vy: 2.8, age: 0, maxAge: 32 })
       }
@@ -126,10 +139,12 @@ export function PhotoelectricEffectSim() {
 
       // ── Advance particles ──
       const DT = 0.016
-      photons.current  = photons.current.filter(p => p.age < p.maxAge)
-      photons.current.forEach(p => { p.x += p.vx; p.y += p.vy; p.age++ })
-      electrons.current = electrons.current.filter(e => e.x < 490 && e.age < e.maxAge)
-      electrons.current.forEach(e => { e.x += e.vx * DT; e.y += e.vy * DT; e.age++ })
+      if (running) {
+        photons.current  = photons.current.filter(p => p.age < p.maxAge)
+        photons.current.forEach(p => { p.x += p.vx; p.y += p.vy; p.age++ })
+        electrons.current = electrons.current.filter(e => e.x < 490 && e.age < e.maxAge)
+        electrons.current.forEach(e => { e.x += e.vx * DT; e.y += e.vy * DT; e.age++ })
+      }
 
       // ── Live current ──
       const cur = emit ? ke * ints * 45 : 0
@@ -319,16 +334,30 @@ export function PhotoelectricEffectSim() {
   return (
     <div dir="rtl" className="font-cairo flex flex-col gap-4 select-none">
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        {(['sim', 'graph', 'info'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-              tab === t ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      {/* Tabs + controls */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-2">
+          {(['sim', 'graph', 'info'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                tab === t ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>
+              {t === 'sim' ? 'المحاكاة' : t === 'graph' ? 'الرسم البياني' : 'التحليل'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setIsRunning(r => !r)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-bold inline-flex items-center gap-1.5 transition-colors ${
+              isRunning ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'
             }`}>
-            {t === 'sim' ? 'المحاكاة' : t === 'graph' ? 'الرسم البياني' : 'التحليل'}
+            {isRunning ? <><Pause size={14} weight="fill"/> إيقاف</> : <><Play size={14} weight="fill"/> تشغيل</>}
           </button>
-        ))}
+          <button onClick={handleReset}
+            className="px-3 py-1.5 rounded-lg text-sm font-bold inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            <ArrowClockwise size={14}/> إعادة ضبط
+          </button>
+        </div>
       </div>
 
       {/* ══ Simulation tab ══════════════════════════════════════════════════ */}

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, ArrowLeft, ArrowClockwise, Drop } from '@phosphor-icons/react'
+import { ArrowRight, ArrowLeft, ArrowClockwise, Drop, Play, Pause } from '@phosphor-icons/react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell, ReferenceLine,
@@ -281,6 +281,8 @@ export function LigandSubstitutionSim() {
   const [metalId, setMetalId]   = useState('cu')
   const [stepIdx, setStepIdx]   = useState(0)
   const [pouring, setPouring]   = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const metal = METALS[metalId]
   const step  = metal.steps[stepIdx]
@@ -293,7 +295,23 @@ export function LigandSubstitutionSim() {
     setTimeout(() => { setStepIdx(idx); setPouring(false) }, 400)
   }
 
-  const changeMetal = (id: string) => { setMetalId(id); setStepIdx(0); setPouring(false) }
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      setStepIdx(prev => {
+        const next = prev + 1
+        if (next >= metal.steps.length) { setIsRunning(false); return prev }
+        return next
+      })
+    }, 1500)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning, metal.steps.length])
+
+  const changeMetal = (id: string) => { setMetalId(id); setStepIdx(0); setPouring(false); setIsRunning(false) }
+  const handleReset = () => { setIsRunning(false); setStepIdx(0); setPouring(false) }
 
   // Bar chart data: steps with delta values
   const chartData = metal.steps
@@ -393,9 +411,15 @@ export function LigandSubstitutionSim() {
               <ArrowLeft size={14} />
             </Button>
           </div>
-          <Button size="sm" variant="ghost" onClick={() => { setStepIdx(0); setPouring(false) }} className="font-cairo gap-1 text-xs text-muted-foreground">
-            <ArrowClockwise size={12} /> إعادة
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+              onClick={() => setIsRunning(r => !r)} className="font-cairo gap-1 text-xs">
+              {isRunning ? <><Pause size={12} weight="fill" /> إيقاف</> : <><Play size={12} weight="fill" /> تشغيل</>}
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleReset} className="font-cairo gap-1 text-xs">
+              <ArrowClockwise size={12} /> إعادة ضبط
+            </Button>
+          </div>
 
           {/* Step pills */}
           <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">

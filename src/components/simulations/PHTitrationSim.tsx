@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
-import { ArrowClockwise } from '@phosphor-icons/react'
+import { ArrowClockwise, Play, Pause } from '@phosphor-icons/react'
 
 // ─── Solutions data ──────────────────────────────────────────────────────────
 const SOLUTIONS = [
@@ -164,17 +164,43 @@ export function PHTitrationSim() {
   const [selectedSolution, setSelectedSolution] = useState(SOLUTIONS.find(s => s.id === 'water')!)
   const [customPH, setCustomPH] = useState(7.0)
   const [volume, setVolume] = useState(0.50)
+  const [isRunning, setIsRunning] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const activePH = mode === 'custom' ? customPH : selectedSolution.ph
   const h3o = phToH3O(activePH)
   const oh  = phToOH(activePH)
 
   const reset = useCallback(() => {
+    setIsRunning(false)
     setSelectedSolution(SOLUTIONS.find(s => s.id === 'water')!)
     setCustomPH(7.0)
     setVolume(0.50)
     setMode('simple')
   }, [])
+
+  // Auto-titration: in custom mode sweep pH; otherwise cycle through solutions
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+    intervalRef.current = setInterval(() => {
+      if (mode === 'custom') {
+        setCustomPH(p => {
+          const next = +(p + 0.5).toFixed(2)
+          if (next > 14) { setIsRunning(false); return 14 }
+          return next
+        })
+      } else {
+        setSelectedSolution(prev => {
+          const idx = SOLUTIONS.findIndex(s => s.id === prev.id)
+          return SOLUTIONS[(idx + 1) % SOLUTIONS.length]
+        })
+      }
+    }, 900)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [isRunning, mode])
 
   const addWater = () => setVolume(v => Math.min(v + 0.1, 1.2))
   const drainSome = () => setVolume(v => Math.max(v - 0.1, 0))
@@ -188,9 +214,15 @@ export function PHTitrationSim() {
           <h3 className="font-bold text-base text-foreground">🧪 مقياس الرقم الهيدروجيني pH</h3>
           <p className="text-xs text-muted-foreground mt-0.5">الوحدة 1 — الكيمياء التحليلية</p>
         </div>
-        <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={reset}>
-          <ArrowClockwise size={13}/> إعادة ضبط
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={reset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Mode tabs */}

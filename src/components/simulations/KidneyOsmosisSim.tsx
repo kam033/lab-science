@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Drop } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { Drop, Play, Pause, ArrowClockwise } from '@phosphor-icons/react'
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 type Tab = 'kidney' | 'osmosis' | 'adh'
@@ -85,10 +86,12 @@ function KidneySVG({ highlighted, onSelect }: { highlighted: string | null, onSe
 const CW = 420
 const CH = 220
 
-function OsmosisCellCanvas({ soluteConc }: { soluteConc: number }) {
+function OsmosisCellCanvas({ soluteConc, isRunning }: { soluteConc: number; isRunning: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef(0)
   const tRef = useRef(0)
+  const runningR = useRef(isRunning)
+  runningR.current = isRunning
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -201,7 +204,7 @@ function OsmosisCellCanvas({ soluteConc }: { soluteConc: number }) {
       const state = diff > 10 ? 'مفرط التوتر — خلية تجفف' : diff < -10 ? 'ناقص التوتر — خلية تنتفخ' : 'متساوي التوتر ✓'
       ctx.fillText(state, cellX, cellY + 80)
 
-      tRef.current += 1
+      if (runningR.current) tRef.current += 1
       animRef.current = requestAnimationFrame(draw)
     }
 
@@ -275,6 +278,15 @@ export function KidneyOsmosisSim() {
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const [soluteConc, setSoluteConc] = useState(150)
   const [adhLevel, setAdhLevel] = useState(0.5)
+  const [isRunning, setIsRunning] = useState(true)
+
+  const handleReset = () => {
+    setTab('kidney')
+    setHighlighted(null)
+    setSoluteConc(150)
+    setAdhLevel(0.5)
+    setIsRunning(true)
+  }
 
   const kidneyParts: Record<string, { fn: string; detail: string }> = {
     cortex:  { fn: 'القشرة الكلوية',   detail: 'تحتوي على كبسولات بومان والأنابيب الملتوية — تصفية أولية للدم' },
@@ -287,9 +299,20 @@ export function KidneyOsmosisSim() {
 
   return (
     <div className="space-y-4 font-cairo" dir="rtl">
-      <div className="flex items-center gap-2">
-        <Drop size={20} weight="fill" className="text-blue-400" />
-        <h3 className="font-bold text-lg">الكلية والتنظيم الأسموزي</h3>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Drop size={20} weight="fill" className="text-blue-400" />
+          <h3 className="font-bold text-lg">الكلية والتنظيم الأسموزي</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={isRunning ? 'secondary' : 'default'}
+            className="gap-1.5 text-xs" onClick={() => setIsRunning(r => !r)}>
+            {isRunning ? <><Pause size={13} weight="fill"/> إيقاف</> : <><Play size={13} weight="fill"/> تشغيل</>}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleReset}>
+            <ArrowClockwise size={13}/> إعادة ضبط
+          </Button>
+        </div>
       </div>
 
       {/* Tab nav */}
@@ -343,7 +366,7 @@ export function KidneyOsmosisSim() {
       {/* ── Osmosis ── */}
       {tab === 'osmosis' && (
         <div className="space-y-4">
-          <OsmosisCellCanvas soluteConc={soluteConc} />
+          <OsmosisCellCanvas soluteConc={soluteConc} isRunning={isRunning} />
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-cairo">
